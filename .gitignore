@@ -22,6 +22,7 @@ e2e/tmp/*
 test-results/*
 
 # Yarn
+.corepack/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
