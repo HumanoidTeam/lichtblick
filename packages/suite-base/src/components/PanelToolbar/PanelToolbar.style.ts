@@ -3,7 +3,10 @@
 
 import { makeStyles } from "tss-react/mui";
 
-import { PANEL_TOOLBAR_MIN_HEIGHT } from "@lichtblick/suite-base/components/PanelToolbar/constants";
+import {
+  PANEL_TOOLBAR_COMPACT_MIN_HEIGHT,
+  PANEL_TOOLBAR_MIN_HEIGHT,
+} from "@lichtblick/suite-base/components/PanelToolbar/constants";
 
 export const useStyles = makeStyles()((theme) => ({
   root: {
@@ -23,5 +26,15 @@ export const useStyles = makeStyles()((theme) => ({
     position: "relative !important" as any,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     top: "auto !important" as any,
+  },
+  compact: {
+    minHeight: PANEL_TOOLBAR_COMPACT_MIN_HEIGHT,
+    padding: theme.spacing(0, 0.5),
+
+    // The icon buttons carry their own padding, which is most of the stock height. Tightening it
+    // here rather than shrinking the icons keeps the hit targets a usable size.
+    ".MuiIconButton-root": {
+      padding: theme.spacing(0.125),
+    },
   },
 }));

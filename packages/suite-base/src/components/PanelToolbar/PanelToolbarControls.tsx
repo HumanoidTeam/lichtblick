@@ -27,7 +27,7 @@ import { PanelActionsDropdown } from "./PanelActionsDropdown";
 
 const PanelToolbarControlsComponent = forwardRef<HTMLDivElement, PanelToolbarControlsProps>(
   (props, ref) => {
-    const { additionalIcons, isUnknownPanel } = props;
+    const { additionalIcons, isUnknownPanel, hideEditControls = false, compact = false } = props;
     const { classes } = useStyles();
     const panelContext = useContext(PanelContext);
     const { id: panelId, type: panelType, showLogs, setShowLogs, logCount } = panelContext ?? {};
@@ -67,10 +67,10 @@ const PanelToolbarControlsComponent = forwardRef<HTMLDivElement, PanelToolbarCon
       <Stack
         direction="row"
         alignItems="center"
-        paddingLeft={1}
+        paddingLeft={compact ? 0.5 : 1}
         ref={ref}
         fullHeight={true}
-        paddingTop={1}
+        paddingTop={compact ? 0 : 1}
       >
         {additionalIcons}
         <Badge
@@ -91,12 +91,12 @@ const PanelToolbarControlsComponent = forwardRef<HTMLDivElement, PanelToolbarCon
             <ListAltIcon color={showLogs === true ? "primary" : undefined} />
           </ToolbarIconButton>
         </Badge>
-        {showSettingsButton && (
+        {showSettingsButton && !hideEditControls && (
           <ToolbarIconButton title="Settings" onClick={openSettings}>
             <SettingsIcon />
           </ToolbarIconButton>
         )}
-        <PanelActionsDropdown isUnknownPanel={isUnknownPanel} />
+        {!hideEditControls && <PanelActionsDropdown isUnknownPanel={isUnknownPanel} />}
       </Stack>
     );
   },

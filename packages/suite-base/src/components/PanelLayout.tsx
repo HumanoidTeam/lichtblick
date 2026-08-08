@@ -47,6 +47,7 @@ import { PanelRemounter } from "./PanelRemounter";
 import { UnknownPanel } from "./UnknownPanel";
 import "react-mosaic-component/react-mosaic-component.css";
 import { useInstallingExtensionsStore } from "../hooks/useInstallingExtensionsStore";
+import { useLayoutLocked } from "../hooks/useOperatorChrome";
 
 type Props = {
   layout?: MosaicNode<string>;
@@ -85,6 +86,7 @@ function TabMosaicWrapper({ tabId, children }: PropsWithChildren<{ tabId?: strin
 export function UnconnectedPanelLayout(props: Readonly<Props>): React.ReactElement {
   const { savePanelConfigs } = useCurrentLayoutActions();
   const mosaicId = usePanelMosaicId();
+  const layoutLocked = useLayoutLocked();
   const { layout, onChange, tabId, loadingComponent } = props;
   const createTile = useCallback(
     (config?: { type?: string; panelConfig?: PanelConfig }) => {
@@ -131,6 +133,7 @@ export function UnconnectedPanelLayout(props: Readonly<Props>): React.ReactEleme
           title=""
           key={id}
           path={path}
+          draggable={!layoutLocked}
           createNode={createTile}
           renderPreview={() => undefined as unknown as React.JSX.Element}
         >
@@ -154,7 +157,7 @@ export function UnconnectedPanelLayout(props: Readonly<Props>): React.ReactEleme
       }
       return mosaicWindow;
     },
-    [panelComponents, createTile, tabId],
+    [panelComponents, createTile, tabId, layoutLocked],
   );
 
   const bodyToRender = useMemo(
@@ -163,7 +166,7 @@ export function UnconnectedPanelLayout(props: Readonly<Props>): React.ReactEleme
         <MosaicWithoutDragDropContext
           renderTile={renderTile}
           className="mosaic-foxglove-theme" // prevent the default mosaic theme from being applied
-          resize={{ minimumPaneSizePercentage: 2 }}
+          resize={layoutLocked ? "DISABLED" : { minimumPaneSizePercentage: 2 }}
           value={layout}
           onChange={(newLayout) => {
             onChange(newLayout ?? undefined);
@@ -173,7 +176,7 @@ export function UnconnectedPanelLayout(props: Readonly<Props>): React.ReactEleme
       ) : (
         <EmptyPanelLayout tabId={tabId} />
       ),
-    [layout, mosaicId, onChange, renderTile, tabId],
+    [layout, mosaicId, onChange, renderTile, tabId, layoutLocked],
   );
 
   return (

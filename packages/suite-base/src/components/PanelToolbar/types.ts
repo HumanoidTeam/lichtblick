@@ -6,6 +6,16 @@ import { CSSProperties } from "react";
 export type PanelToolbarControlsProps = {
   additionalIcons?: React.ReactNode;
   isUnknownPanel: boolean;
+  /**
+   * Hides the controls that change the layout or a panel's configuration, leaving the panel's own
+   * `additionalIcons` in place. Set when the layout is locked.
+   */
+  hideEditControls?: boolean;
+  /**
+   * Drops the padding that would otherwise hold the toolbar well above the height of the icons it
+   * contains. Set for the compact toolbar mode.
+   */
+  compact?: boolean;
 };
 
 export type PanelToolbarProps = {

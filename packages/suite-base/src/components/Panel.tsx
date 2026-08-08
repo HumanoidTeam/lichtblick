@@ -60,6 +60,7 @@ import {
   useWorkspaceStore,
   WorkspaceStoreSelectors,
 } from "@lichtblick/suite-base/context/Workspace/WorkspaceContext";
+import { useLayoutLocked } from "@lichtblick/suite-base/hooks/useOperatorChrome";
 import usePanelDrag from "@lichtblick/suite-base/hooks/usePanelDrag";
 import { useMessagePathDrop } from "@lichtblick/suite-base/services/messagePathDragging";
 import { OpenSiblingPanel, PanelConfig, SaveConfig } from "@lichtblick/suite-base/types/panels";
@@ -125,6 +126,7 @@ export default function Panel<
       getCurrentLayoutState,
     } = useCurrentLayoutActions();
 
+    const layoutLocked = useLayoutLocked();
     const [quickActionsKeyPressed, setQuickActionsKeyPressed] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
     const [fullscreenSourceRect, setFullscreenSourceRect] = useState<DOMRect | undefined>(
@@ -404,11 +406,13 @@ export default function Panel<
               selectAllPanels();
             }
           },
+          // A locked layout has no split or remove action to offer, so the quick-actions overlay
+          // stays shut. Without this the key is a way around the hidden toolbar controls.
           Backquote: () => {
-            setQuickActionsKeyPressed(true);
+            setQuickActionsKeyPressed(!layoutLocked);
           },
           "~": () => {
-            setQuickActionsKeyPressed(true);
+            setQuickActionsKeyPressed(!layoutLocked);
           },
           Escape: () => {
             if (numSelectedPanelsIfSelected > 1) {
@@ -417,7 +421,7 @@ export default function Panel<
           },
         },
       }),
-      [selectAllPanels, numSelectedPanelsIfSelected, setSelectedPanelIds],
+      [selectAllPanels, numSelectedPanelsIfSelected, setSelectedPanelIds, layoutLocked],
     );
 
     const fullScreenKeyHandlers = useMemo(
@@ -481,27 +485,31 @@ export default function Panel<
         };
         overlayProps.variant = "selected";
         overlayProps.highlightMode = "all";
-        overlayProps.actions = [
-          {
-            key: "group",
-            text: "Group in tab",
-            icon: <TabDesktop20Regular />,
-            onClick: groupPanels,
-          },
-          {
-            key: "create-tabs",
-            text: "Create tabs",
-            icon: (
-              <>
-                <span className={classes.tabCount}>
-                  {numSelectedPanelsIfSelected <= 99 ? numSelectedPanelsIfSelected : ""}{" "}
-                </span>
-                <TabDesktopMultiple20Regular />
-              </>
-            ),
-            onClick: createTabs,
-          },
-        ];
+        // Selecting panels is harmless while locked, but grouping them into tabs rewrites the
+        // layout, so a locked layout gets the highlight without the actions.
+        overlayProps.actions = layoutLocked
+          ? undefined
+          : [
+              {
+                key: "group",
+                text: "Group in tab",
+                icon: <TabDesktop20Regular />,
+                onClick: groupPanels,
+              },
+              {
+                key: "create-tabs",
+                text: "Create tabs",
+                icon: (
+                  <>
+                    <span className={classes.tabCount}>
+                      {numSelectedPanelsIfSelected <= 99 ? numSelectedPanelsIfSelected : ""}{" "}
+                    </span>
+                    <TabDesktopMultiple20Regular />
+                  </>
+                ),
+                onClick: createTabs,
+              },
+            ];
       }
       if (type !== TAB_PANEL_TYPE && quickActionsKeyPressed) {
         overlayProps.variant = "selected";
@@ -545,6 +553,7 @@ export default function Panel<
       isOver,
       isSelected,
       isValidTarget,
+      layoutLocked,
       numSelectedPanelsIfSelected,
       quickActionsKeyPressed,
       removePanel,

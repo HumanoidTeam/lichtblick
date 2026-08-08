@@ -23,6 +23,11 @@ import PanelContext from "@lichtblick/suite-base/components/PanelContext";
 import { useStyles } from "@lichtblick/suite-base/components/PanelToolbar/PanelToolbar.style";
 import ToolbarIconButton from "@lichtblick/suite-base/components/PanelToolbar/ToolbarIconButton";
 import { PanelToolbarProps } from "@lichtblick/suite-base/components/PanelToolbar/types";
+import {
+  PanelToolbarMode,
+  useLayoutLocked,
+  usePanelToolbarMode,
+} from "@lichtblick/suite-base/hooks/useOperatorChrome";
 import { useDefaultPanelTitle } from "@lichtblick/suite-base/providers/PanelStateContextProvider";
 import { PANEL_TITLE_CONFIG_KEY } from "@lichtblick/suite-base/util/layout";
 
@@ -39,6 +44,8 @@ export default React.memo<PanelToolbarProps>(function PanelToolbar({
   isUnknownPanel = false,
 }: PanelToolbarProps) {
   const { classes, cx } = useStyles();
+  const toolbarMode = usePanelToolbarMode();
+  const layoutLocked = useLayoutLocked();
   const {
     isFullscreen,
     exitFullscreen,
@@ -72,12 +79,12 @@ export default React.memo<PanelToolbarProps>(function PanelToolbar({
   }, [additionalIcons, isFullscreen, exitFullscreen, enterFullscreen]);
 
   // If we have children then we limit the drag area to the controls. Otherwise the entire
-  // toolbar is draggable.
-  const rootDragRef =
-    isUnknownPanel || children != undefined ? undefined : panelContext?.connectToolbarDragHandle;
+  // toolbar is draggable. A locked layout connects neither, so the toolbar cannot start a drag.
+  const dragHandle = layoutLocked ? undefined : panelContext?.connectToolbarDragHandle;
 
-  const controlsDragRef =
-    isUnknownPanel || children == undefined ? undefined : panelContext?.connectToolbarDragHandle;
+  const rootDragRef = isUnknownPanel || children != undefined ? undefined : dragHandle;
+
+  const controlsDragRef = isUnknownPanel || children == undefined ? undefined : dragHandle;
 
   const [defaultPanelTitle] = useDefaultPanelTitle();
   const customPanelTitle =
@@ -86,9 +93,19 @@ export default React.memo<PanelToolbarProps>(function PanelToolbar({
       : defaultPanelTitle;
 
   const title = customPanelTitle ?? panelContext?.title;
+
+  if (toolbarMode === PanelToolbarMode.Hidden) {
+    // Rendered as nothing rather than hidden with CSS, so the panel body actually reclaims the
+    // pixels instead of being laid out underneath an invisible header. Note this also removes any
+    // custom toolbar `children` a panel supplies, which is the intent for a frozen layout.
+    return <></>;
+  }
+
   return (
     <header
-      className={cx(classes.root, className)}
+      className={cx(classes.root, className, {
+        [classes.compact]: toolbarMode === PanelToolbarMode.Compact,
+      })}
       data-testid="mosaic-drag-handle"
       ref={rootDragRef}
       style={{ backgroundColor, cursor: rootDragRef != undefined ? "grab" : "auto" }}
@@ -102,6 +119,8 @@ export default React.memo<PanelToolbarProps>(function PanelToolbar({
       <PanelToolbarControls
         additionalIcons={additionalIconsWithHelp}
         isUnknownPanel={isUnknownPanel}
+        hideEditControls={layoutLocked}
+        compact={toolbarMode === PanelToolbarMode.Compact}
         ref={controlsDragRef}
       />
     </header>

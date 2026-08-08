@@ -23,8 +23,16 @@ import Panel from "@lichtblick/suite-base/components/Panel";
 import PanelContext from "@lichtblick/suite-base/components/PanelContext";
 import { useCurrentLayoutActions } from "@lichtblick/suite-base/context/CurrentLayoutContext";
 import { PanelsActions } from "@lichtblick/suite-base/context/CurrentLayoutContext/actions";
+import { useLayoutLocked } from "@lichtblick/suite-base/hooks/useOperatorChrome";
 import PanelSetup from "@lichtblick/suite-base/stories/PanelSetup";
 import { BasicBuilder } from "@lichtblick/test-builders";
+
+jest.mock("@lichtblick/suite-base/hooks/useOperatorChrome", () => ({
+  ...jest.requireActual("@lichtblick/suite-base/hooks/useOperatorChrome"),
+  useLayoutLocked: jest.fn(() => false),
+}));
+
+const mockUseLayoutLocked = useLayoutLocked as jest.MockedFunction<typeof useLayoutLocked>;
 
 type DummyConfig = { someString: string };
 // eslint-disable-next-line react/no-unused-prop-types
@@ -1055,5 +1063,52 @@ describe("Panel", () => {
       // Then
       expect(renderFn).toHaveBeenCalled();
     });
+  });
+});
+
+describe("Panel layout lock", () => {
+  beforeEach(() => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockUseLayoutLocked.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    (console.error as jest.Mock).mockRestore();
+  });
+
+  function renderPanel({ locked }: { locked: boolean }) {
+    mockUseLayoutLocked.mockReturnValue(locked);
+    const DummyPanel = getDummyPanel(jest.fn());
+    return render(
+      <PanelSetup>
+        <DummyPanel childId="Dummy!lock" />
+      </PanelSetup>,
+    );
+  }
+
+  it("offers the quick actions on backtick when the layout is unlocked", async () => {
+    renderPanel({ locked: false });
+
+    fireEvent.keyDown(document, { key: "`", code: "Backquote" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Remove")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Split down")).toBeInTheDocument();
+    expect(screen.getByText("Split right")).toBeInTheDocument();
+  });
+
+  it("offers no quick actions on backtick when the layout is locked", async () => {
+    // The backtick overlay is a way around the hidden toolbar controls: without this gate an
+    // operator could still split or remove panels in a frozen layout
+    renderPanel({ locked: true });
+
+    fireEvent.keyDown(document, { key: "`", code: "Backquote" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Remove")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("Split down")).not.toBeInTheDocument();
+    expect(screen.queryByText("Split right")).not.toBeInTheDocument();
   });
 });
