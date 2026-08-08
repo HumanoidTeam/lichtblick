@@ -36,15 +36,4 @@ export default [
       "import/no-cycle": "off",
     },
   },
-
-  // Relaxed rules for e2e CI helpers
-  {
-    files: ["e2e/ci-helpers/**/*.ts"],
-    rules: {
-      "no-restricted-syntax": "off",
-      "import/order": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/strict-boolean-expressions": "off",
-    },
-  },
 ];

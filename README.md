@@ -15,9 +15,6 @@
 <p  align="center">
 Lichtblick is an integrated visualization and diagnosis tool for robotics, available in your browser or as a desktop app on Linux, Windows, and macOS.
 </p>
-  <p align="center">
-    <img alt="Lichtblick screenshot" src="resources/screenshot.png">
-  </p>
 </div>
 
 ## :rocket: Try Lichtblick
