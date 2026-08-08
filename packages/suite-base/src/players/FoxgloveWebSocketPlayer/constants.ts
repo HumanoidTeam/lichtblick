@@ -21,3 +21,9 @@ export const SUPPORTED_SERVICE_ENCODINGS = ["json", ...ROS_ENCODINGS];
  * 400MB
  */
 export const CURRENT_FRAME_MAXIMUM_SIZE_BYTES = 400 * 1024 * 1024;
+
+/** Alert id for the aggregated `requestSchema` / `responseSchema` deprecation warning. */
+export const DEPRECATED_SERVICE_SCHEMA_ALERT_ID = "services:deprecated-schema";
+
+/** How many service names the aggregated deprecation alert spells out before summarising. */
+export const MAX_LISTED_DEPRECATED_SERVICES = 5;

@@ -64,6 +64,7 @@ import { JsonMessageWriter } from "./JsonMessageWriter";
 import WorkerSocketAdapter from "./WorkerSocketAdapter";
 import {
   CURRENT_FRAME_MAXIMUM_SIZE_BYTES,
+  DEPRECATED_SERVICE_SCHEMA_ALERT_ID,
   FALLBACK_PUBLICATION_ENCODING,
   GET_ALL_PARAMS_PERIOD_MS,
   GET_ALL_PARAMS_REQUEST_ID,
@@ -73,7 +74,11 @@ import {
   SUPPORTED_SERVICE_ENCODINGS,
   ZERO_TIME,
 } from "./constants";
-import { dataTypeToFullName, statusLevelToAlertSeverity } from "./helpers";
+import {
+  buildDeprecatedServiceSchemaAlert,
+  dataTypeToFullName,
+  statusLevelToAlertSeverity,
+} from "./helpers";
 import {
   MessageWriter,
   MessageDefinitionMap,
@@ -135,6 +140,13 @@ export default class FoxgloveWebSocketPlayer implements Player {
   #publicationsByTopic = new Map<string, Publication>();
   #serviceCallEncoding?: string;
   #servicesByName = new Map<string, ResolvedService>();
+  /**
+   * Names of the currently advertised services that still use the deprecated `requestSchema` /
+   * `responseSchema` fields, keyed by service id so `unadvertiseServices` can drop them. Collected
+   * so the deprecation is reported as one alert rather than one per service; see
+   * {@link #updateDeprecatedServiceSchemaAlert}.
+   */
+  #deprecatedSchemaServiceNames = new Map<number, string>();
   #serviceResponseCbs = new Map<
     ServiceCallRequest["callId"],
     (response: ServiceCallResponse) => void
@@ -765,18 +777,16 @@ export default class FoxgloveWebSocketPlayer implements Player {
           this.#servicesByName.set(service.name, resolvedService);
           this.#alerts.removeAlert(serviceAlertId);
 
-          // Issue a warning to users if the service relies on deprecated fields (`requestSchema` or `responseSchema`).
-          // This highlights the need for migration, as these fields will be removed in future versions.
-
+          // Note if the service relies on deprecated fields (`requestSchema` or `responseSchema`).
+          // This highlights the need for migration, as these fields will be removed in future
+          // versions. The alert itself is raised once for all such services after the loop, rather
+          // than per service: a bridge that predates the migration advertises every one of its
+          // services this way, which buried every other alert behind hundreds of identical ones.
           // eslint-disable-next-line @typescript-eslint/no-deprecated
           if (service.requestSchema || service.responseSchema) {
-            this.#alerts.addAlert(serviceAlertId, {
-              severity: "warn",
-              message: `Service ${service.name}`,
-              error: new Error(
-                "requestSchema and responseSchema are deprecated and will not be supported in future versions of Lichtblick",
-              ),
-            });
+            this.#deprecatedSchemaServiceNames.set(service.id, service.name);
+          } else {
+            this.#deprecatedSchemaServiceNames.delete(service.id);
           }
         } catch (error) {
           this.#alerts.addAlert(serviceAlertId, {
@@ -786,6 +796,7 @@ export default class FoxgloveWebSocketPlayer implements Player {
           });
         }
       }
+      this.#updateDeprecatedServiceSchemaAlert();
       this.#emitState();
     });
 
@@ -798,9 +809,11 @@ export default class FoxgloveWebSocketPlayer implements Player {
         if (service) {
           this.#servicesByName.delete(service.service.name);
         }
+        this.#deprecatedSchemaServiceNames.delete(serviceId);
         const serviceAlertId = `service:${serviceId}`;
         needsStateUpdate = this.#alerts.removeAlert(serviceAlertId) || needsStateUpdate;
       }
+      needsStateUpdate = this.#updateDeprecatedServiceSchemaAlert() || needsStateUpdate;
       if (needsStateUpdate) {
         this.#emitState();
       }
@@ -1354,6 +1367,27 @@ export default class FoxgloveWebSocketPlayer implements Player {
     this.#fetchAssetRequests.clear();
     this.#parameterTypeByName.clear();
     this.#messageSizeEstimateByTopic = {};
+    // #alerts was just cleared, so the aggregate alert is gone; drop what it was derived from too,
+    // otherwise a reconnect would leave stale service names in the message.
+    this.#deprecatedSchemaServiceNames.clear();
+  }
+
+  /**
+   * Raises a single alert covering every advertised service that still uses the deprecated
+   * `requestSchema` / `responseSchema` fields, replacing it as the set changes and removing it once
+   * no such service remains.
+   *
+   * @returns whether the alert set changed, so callers can decide to emit state.
+   */
+  #updateDeprecatedServiceSchemaAlert(): boolean {
+    const alert = buildDeprecatedServiceSchemaAlert(
+      Array.from(this.#deprecatedSchemaServiceNames.values()),
+    );
+    if (!alert) {
+      return this.#alerts.removeAlert(DEPRECATED_SERVICE_SCHEMA_ALERT_ID);
+    }
+    this.#alerts.addAlert(DEPRECATED_SERVICE_SCHEMA_ALERT_ID, alert);
+    return true;
   }
 
   #updateDataTypes(datatypes: MessageDefinitionMap): void {
