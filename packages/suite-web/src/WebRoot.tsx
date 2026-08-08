@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 
 import {
   AppBarProps,
+  AppConfigurationValue,
   AppSetting,
   IExtensionLoader,
   FoxgloveWebSocketDataSourceFactory,
@@ -34,17 +35,30 @@ const isDevelopment = process.env.NODE_ENV === "development";
 export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
   dataSources: IDataSourceFactory[] | undefined;
+  /**
+   * Replaces the built-in extension loaders, or — when given a function — receives them so an
+   * embedder can append its own. Omitted means the built-in loaders are used as-is.
+   */
+  extensionLoaders?:
+    | IExtensionLoader[]
+    | ((defaultLoaders: IExtensionLoader[]) => IExtensionLoader[]);
+  /** Merged over the built-in app configuration defaults. */
+  appConfigurationDefaults?: Record<string, AppConfigurationValue>;
+  enableLaunchPreferenceScreen?: boolean;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;
   children: React.JSX.Element;
 }): React.JSX.Element {
+  const { appConfigurationDefaults, enableLaunchPreferenceScreen = true } = props;
+
   const appConfiguration = useMemo(
     () =>
       new LocalStorageAppConfiguration({
         defaults: {
           [AppSetting.SHOW_DEBUG_PANELS]: isDevelopment,
+          ...appConfigurationDefaults,
         },
       }),
-    [],
+    [appConfigurationDefaults],
   );
 
   const defaultExtensionLoaders: IExtensionLoader[] = [
@@ -57,7 +71,11 @@ export function WebRoot(props: {
   if (workspace && APP_CONFIG.apiUrl) {
     defaultExtensionLoaders.push(new RemoteExtensionLoader("org", workspace));
   }
-  const [extensionLoaders] = useState(() => defaultExtensionLoaders);
+  const [extensionLoaders] = useState(() =>
+    typeof props.extensionLoaders === "function"
+      ? props.extensionLoaders(defaultExtensionLoaders)
+      : (props.extensionLoaders ?? defaultExtensionLoaders),
+  );
 
   const layout = url.searchParams.get("layout");
   const [appParameters] = useState<AppParametersInput>(() => {
@@ -85,7 +103,7 @@ export function WebRoot(props: {
 
   return (
     <SharedRoot
-      enableLaunchPreferenceScreen
+      enableLaunchPreferenceScreen={enableLaunchPreferenceScreen}
       deepLinks={[globalThis.location.href]}
       dataSources={dataSources}
       appConfiguration={appConfiguration}
