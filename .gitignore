@@ -27,6 +27,9 @@ test-results/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/sdks
+# .yarnrc.yml's yarnPath points here; downstream vendoring (copy + git add,
+# not a native subtree merge) must not drop the bootstrap script.
+!.yarn/yarn-wrapper.js
 .pnp.*
 
 # SonarQube files
