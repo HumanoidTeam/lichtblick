@@ -3,7 +3,8 @@
   "projects": [
     "<rootDir>/benchmark/jest.config.json",
     "<rootDir>/ci/jest.config.json",
-    "<rootDir>/packages/*/jest.config.json"
+    "<rootDir>/packages/*/jest.config.json",
+    "<rootDir>/web-hmnd/jest.config.json"
   ],
   "coverageDirectory": "coverage"
 }

@@ -1,0 +1,16 @@
+{
+  "testMatch": ["<rootDir>/test/**/*.test.ts(x)?"],
+  "transform": {
+    "\\.[jt]sx?$": [
+      "babel-jest",
+      {
+        "rootMode": "upward"
+      }
+    ]
+  },
+  "transformIgnorePatterns": [],
+  "haste": {
+    "forceNodeFilesystemAPI": true
+  },
+  "restoreMocks": true
+}

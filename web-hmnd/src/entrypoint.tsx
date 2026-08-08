@@ -7,15 +7,13 @@
 
 import { main } from "@lichtblick/suite-web";
 
-/** Set to 1 to restore the stock app bar, which layout authoring needs. */
-const APP_BAR_PARAM = "hmnd-appbar";
-
-const HiddenAppBar = () => <></>;
+import { resolveChromeParams } from "./chromeParams";
 
 void main(async () => {
   // Imported lazily so the compatibility banner can render before the bulk of
   // the suite is downloaded, matching what suite-web's own main() does.
   const {
+    AppContext,
     AppSetting,
     FoxgloveWebSocketDataSourceFactory,
     McapLocalDataSourceFactory,
@@ -24,14 +22,31 @@ void main(async () => {
   } = await import("@lichtblick/suite-base");
   const { WebRoot } = await import("@lichtblick/suite-web/src/WebRoot");
   const { BundledExtensionLoader } = await import("./BundledExtensionLoader");
+  const { createCollapsedSidebarStore } = await import("./collapsedSidebarStore");
 
-  const params = new URL(globalThis.location.href).searchParams;
-  const showAppBar = params.get(APP_BAR_PARAM) === "1";
+  const chrome = resolveChromeParams(new URL(globalThis.location.href).searchParams);
+
+  const HiddenAppBar = () => <></>;
 
   return {
     rootElement: (
       <WebRoot
-        extraProviders={undefined}
+        // Seeds the workspace store with both sidebars collapsed. This needs no core patch:
+        // Workspace reads `workspaceStoreCreator` off AppContext, and StudioApp renders
+        // extraProviders around Workspace.
+        extraProviders={
+          chrome.collapseSidebars
+            ? [
+                <AppContext.Provider
+                  key="hmnd-workspace-store"
+                  value={{
+                    wrapPlayer: (child) => child,
+                    workspaceStoreCreator: createCollapsedSidebarStore,
+                  }}
+                />,
+              ]
+            : undefined
+        }
         // Live operations plus fault investigation of recordings; the remaining
         // stock sources are formats we do not produce.
         dataSources={[
@@ -40,9 +55,15 @@ void main(async () => {
           new Ros2LocalBagDataSourceFactory(),
         ]}
         extensionLoaders={(defaultLoaders) => [...defaultLoaders, new BundledExtensionLoader()]}
-        appConfigurationDefaults={{ [AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP]: false }}
+        // Defaults rather than stored values, so a URL parameter decides what the app sees without
+        // writing anything an operator would then be stuck with.
+        appConfigurationDefaults={{
+          [AppSetting.SHOW_OPEN_DIALOG_ON_STARTUP]: false,
+          [AppSetting.PANEL_TOOLBAR_MODE]: chrome.panelToolbarMode,
+          [AppSetting.LAYOUT_LOCKED]: chrome.layoutLocked,
+        }}
         enableLaunchPreferenceScreen={false}
-        AppBarComponent={showAppBar ? undefined : HiddenAppBar}
+        AppBarComponent={chrome.showAppBar ? undefined : HiddenAppBar}
       >
         <StudioApp />
       </WebRoot>
