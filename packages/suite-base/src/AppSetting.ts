@@ -32,6 +32,13 @@ export enum AppSetting {
   SHOW_OPEN_DIALOG_ON_STARTUP = "ui.open-dialog-startup",
   ENABLE_UNIFIED_NAVIGATION = "ui.new-app-menu",
 
+  // Embedded / operator chrome. Set by an embedder through appConfigurationDefaults; see
+  // hooks/useOperatorChrome.ts.
+  /** "full" | "compact" | "hidden" -- how much toolbar each panel renders. */
+  PANEL_TOOLBAR_MODE = "ui.panel-toolbar-mode",
+  /** Freezes the layout: no mosaic drag, split or resize, and no adding or removing panels. */
+  LAYOUT_LOCKED = "ui.layout-locked",
+
   // Dev only
   ENABLE_LAYOUT_DEBUGGING = "enableLayoutDebugging",
   ENABLE_MEMORY_USE_INDICATOR = "dev.memory-use-indicator",
