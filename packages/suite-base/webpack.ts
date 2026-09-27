@@ -98,6 +98,7 @@ export function makeConfig(
       },
       fallback: {
         path: localRequire.resolve("path-browserify"), // foxglove-depcheck-used: path-browserify
+        buffer: localRequire.resolve("buffer/"), // foxglove-depcheck-used: buffer
         stream: localRequire.resolve("readable-stream"), // foxglove-depcheck-used: readable-stream
         assert: false,
         zlib: localRequire.resolve("browserify-zlib"), // foxglove-depcheck-used: browserify-zlib
@@ -273,7 +274,8 @@ export function makeConfig(
         // since we avoid "import React from 'react'" we shim here when used globally
         React: "react",
         // the buffer module exposes the Buffer class as a property
-        Buffer: [localRequire.resolve("buffer"), "Buffer"], // foxglove-depcheck-used: buffer
+        // "buffer/" with the slash: without it, require.resolve returns the Node builtin name
+        Buffer: [localRequire.resolve("buffer/"), "Buffer"], // foxglove-depcheck-used: buffer
         process: ["@lichtblick/suite-base/util/process", "default"],
         setImmediate: ["@lichtblick/suite-base/util/setImmediate", "default"],
       }),
