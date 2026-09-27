@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "babel-jest": "30.5.0",
-    "nearley": "2.20.1"
+    "nearley": "2.20.1",
+    "tslib": "2.8.1"
   },
   "devDependencies": {
     "@lichtblick/tsconfig": "1.1.2",

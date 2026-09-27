@@ -4,7 +4,8 @@
   "private": true,
   "main": "./src/index.tsx",
   "dependencies": {
-    "@lichtblick/suite-base": "workspace:*"
+    "@lichtblick/suite-base": "workspace:*",
+    "tslib": "2.8.1"
   },
   "devDependencies": {
     "@fluentui/react-icons": "2.0.308",

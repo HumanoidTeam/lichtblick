@@ -273,7 +273,7 @@ export function makeConfig(
         // since we avoid "import React from 'react'" we shim here when used globally
         React: "react",
         // the buffer module exposes the Buffer class as a property
-        Buffer: ["buffer", "Buffer"],
+        Buffer: [localRequire.resolve("buffer"), "Buffer"], // foxglove-depcheck-used: buffer
         process: ["@lichtblick/suite-base/util/process", "default"],
         setImmediate: ["@lichtblick/suite-base/util/setImmediate", "default"],
       }),

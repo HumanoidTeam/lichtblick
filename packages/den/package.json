@@ -16,6 +16,7 @@
     "@lichtblick/comlink": "1.0.3",
     "async-mutex": "0.5.0",
     "eventemitter3": "5.0.1",
+    "tslib": "2.8.1",
     "xacro-parser": "0.3.11"
   },
   "devDependencies": {
