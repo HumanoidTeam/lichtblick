@@ -26,6 +26,27 @@ const COLOR_WHITE = { r: 1, g: 1, b: 1, a: 1 };
 
 const PI_2 = Math.PI / 2;
 
+type AxisMaterials = {
+  shaft: THREE.MeshStandardMaterial;
+  head: THREE.MeshStandardMaterial;
+};
+
+/**
+ * All axes of one renderer share two materials. The arrows are white and get their colors per
+ * instance, so the materials are identical. One material per axis made three.js refresh material
+ * uniforms for every axis draw call (two per coordinate frame, on every frame).
+ */
+const sharedMaterials = new WeakMap<IRenderer, AxisMaterials>();
+
+function materialsFor(renderer: IRenderer): AxisMaterials {
+  let materials = sharedMaterials.get(renderer);
+  if (!materials) {
+    materials = { shaft: standardMaterial(COLOR_WHITE), head: standardMaterial(COLOR_WHITE) };
+    sharedMaterials.set(renderer, materials);
+  }
+  return materials;
+}
+
 const tempMat4 = new THREE.Matrix4();
 const tempVec = new THREE.Vector3();
 
@@ -44,7 +65,8 @@ export class Axis extends THREE.Object3D {
       `${this.constructor.name}-shaft-${this.#renderer.maxLod}`,
       () => createShaftGeometry(this.#renderer.maxLod),
     );
-    this.#shaftMesh = new THREE.InstancedMesh(shaftGeometry, standardMaterial(COLOR_WHITE), 3);
+    const materials = materialsFor(this.#renderer);
+    this.#shaftMesh = new THREE.InstancedMesh(shaftGeometry, materials.shaft, 3);
     this.#shaftMesh.frustumCulled = false;
     this.#shaftMesh.castShadow = true;
     this.#shaftMesh.receiveShadow = true;
@@ -55,7 +77,7 @@ export class Axis extends THREE.Object3D {
       () => createHeadGeometry(this.#renderer.maxLod),
     );
 
-    this.#headMesh = new THREE.InstancedMesh(headGeometry, standardMaterial(COLOR_WHITE), 3);
+    this.#headMesh = new THREE.InstancedMesh(headGeometry, materials.head, 3);
     this.#headMesh.frustumCulled = false;
     this.#headMesh.castShadow = true;
     this.#headMesh.receiveShadow = true;
@@ -67,9 +89,8 @@ export class Axis extends THREE.Object3D {
   }
 
   public dispose(): void {
-    this.#shaftMesh.material.dispose();
+    // The materials are shared by all axes of the renderer (see materialsFor)
     this.#shaftMesh.dispose();
-    this.#headMesh.material.dispose();
     this.#headMesh.dispose();
   }
 
