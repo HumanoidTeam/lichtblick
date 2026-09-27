@@ -2447,7 +2447,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/sql.js@npm:^0.0.4":
+"@foxglove/sql.js@npm:0.0.4, @foxglove/sql.js@npm:^0.0.4":
   version: 0.0.4
   resolution: "@foxglove/sql.js@npm:0.0.4"
   checksum: 10/46b5a293e66d3c0dd7ffd399638c365a9b219c907ab97a178d7c183f2c68bf033177e3dc3f069882bca11cd0f95d8dff002f7c6aa2411a97bfb07833f5644575
@@ -3553,6 +3553,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@fluentui/react-icons": "npm:2.0.308"
     "@foxglove/schemas": "npm:1.13.0"
+    "@foxglove/sql.js": "npm:0.0.4"
     "@foxglove/ws-protocol": "npm:0.8.0"
     "@lichtblick/avl": "npm:1.0.0"
     "@lichtblick/chartjs-plugin-zoom": "npm:1.0.0"
@@ -3628,10 +3629,12 @@ __metadata:
     "@types/uuid": "npm:9.0.7"
     "@types/wicg-file-system-access": "npm:2023.10.7"
     "@uiw/react-textarea-code-editor": "npm:3.1.0"
+    assert: "npm:2.1.0"
     async-mutex: "npm:0.5.0"
     babel-jest: "npm:30.5.0"
     babel-plugin-transform-import-meta: "npm:2.2.1"
     browserify-zlib: "npm:0.2.0"
+    buffer: "npm:5.7.1"
     chart.js: "npm:4.4.8"
     chartjs-plugin-annotation: "npm:3.0.1"
     chartjs-plugin-datalabels: "npm:2.2.0"
@@ -8589,7 +8592,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"buffer@npm:^5.5.0":
+"buffer@npm:5.7.1, buffer@npm:^5.5.0":
   version: 5.7.1
   resolution: "buffer@npm:5.7.1"
   dependencies:
@@ -21481,6 +21484,7 @@ __metadata:
     react: "npm:18.3.1"
     webpack: "npm:5.108.3"
     webpack-dev-server: "npm:5.2.6"
+    zustand: "npm:4.5.7"
   languageName: unknown
   linkType: soft
 
