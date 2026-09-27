@@ -7,7 +7,5 @@
 
 import cytoscape from "cytoscape";
 
-declare module "cytoscape-dagre" {
-  const CytoscapeDagre: cytoscape.Ext;
-  export default CytoscapeDagre;
-}
+declare const CytoscapeDagre: cytoscape.Ext;
+export default CytoscapeDagre;
