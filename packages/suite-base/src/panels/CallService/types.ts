@@ -12,4 +12,6 @@ export type Config = {
   buttonText?: string;
   buttonTooltip?: string;
   buttonColor?: string;
+  /** Maximum time to wait for a service response, in seconds. */
+  timeoutSeconds?: number;
 };

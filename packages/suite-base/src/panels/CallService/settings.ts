@@ -69,6 +69,12 @@ export function useSettingsTree(config: Config, services: string[] = []): Settin
           },
           buttonTooltip: { label: "Tooltip", input: "string", value: config.buttonTooltip },
           buttonColor: { label: "Color", input: "rgb", value: config.buttonColor },
+          timeoutSeconds: {
+            label: "Timeout (seconds)",
+            input: "number",
+            value: config.timeoutSeconds,
+            min: 0,
+          },
         },
       },
     }),

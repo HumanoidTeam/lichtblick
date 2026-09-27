@@ -9,6 +9,7 @@ import { Button, Palette, TextField, Tooltip, Typography, inputBaseClasses } fro
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 
+import { promiseTimeout } from "@lichtblick/den/async";
 import Log from "@lichtblick/log";
 import { PanelExtensionContext, SettingsTreeAction } from "@lichtblick/suite";
 import Stack from "@lichtblick/suite-base/components/Stack";
@@ -183,10 +184,11 @@ function CallServiceContent(
 
     try {
       setState({ status: "requesting", value: `Calling ${config.serviceName}...` });
-      const response = await context.callService(
-        config.serviceName!,
-        JSON.parse(config.requestPayload!),
-      );
+      const serviceCall = context.callService(config.serviceName!, JSON.parse(config.requestPayload!));
+      const response =
+        config.timeoutSeconds != undefined && config.timeoutSeconds > 0
+          ? await promiseTimeout(serviceCall, config.timeoutSeconds * 1000)
+          : await serviceCall;
       setState({
         status: "success",
         value:
