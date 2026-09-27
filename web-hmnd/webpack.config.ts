@@ -11,17 +11,34 @@ import {
   ConfigParams,
   devServerConfig,
   mainConfig,
+  WebpackConfiguration,
 } from "@lichtblick/suite-web/src/webpackConfigs";
 
 import packageJson from "../package.json";
 
-const params: ConfigParams = {
-  outputPath: path.resolve(__dirname, ".webpack"),
-  contextPath: path.resolve(__dirname, "src"),
-  entrypoint: "./entrypoint.tsx",
-  prodSourceMap: "source-map",
-  version: packageJson.version,
+export type WebHmndConfigOptions = {
+  /** Directory that holds `entrypoint` and a `tsconfig.json`. Default: `web-hmnd/src`. */
+  contextPath?: string;
+  /** Entry file, relative to `contextPath`. Default: `./entrypoint.tsx`. */
+  entrypoint?: string;
+  /** Output directory. Default: `web-hmnd/.webpack`. */
+  outputPath?: string;
 };
 
+/**
+ * Makes the web-hmnd webpack configs. A downstream build can call this from its own webpack
+ * config with an entry file that imports `main` from `web-hmnd/src/index.ts` and passes its panels.
+ */
+export function makeWebHmndConfig(options: WebHmndConfigOptions = {}): (WebpackConfiguration | ReturnType<typeof mainConfig>)[] {
+  const params: ConfigParams = {
+    outputPath: options.outputPath ?? path.resolve(__dirname, ".webpack"),
+    contextPath: options.contextPath ?? path.resolve(__dirname, "src"),
+    entrypoint: options.entrypoint ?? "./entrypoint.tsx",
+    prodSourceMap: "source-map",
+    version: packageJson.version,
+  };
+  return [devServerConfig(params), mainConfig(params)];
+}
+
 // foxglove-depcheck-used: webpack-dev-server
-export default [devServerConfig(params), mainConfig(params)];
+export default makeWebHmndConfig();

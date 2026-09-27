@@ -23,7 +23,15 @@ type PanelProps = {
   saveConfig: SaveConfig<unknown>;
 };
 
-export default function PanelCatalogProvider(props: PropsWithChildren): React.ReactElement {
+type PanelCatalogProviderProps = PropsWithChildren<{
+  /** Panels added to the built-in panels, for example by an embedding application. */
+  extraPanels?: readonly PanelInfo[];
+}>;
+
+export default function PanelCatalogProvider(
+  props: PanelCatalogProviderProps,
+): React.ReactElement {
+  const { extraPanels } = props;
   const { t } = useTranslation("panels");
 
   const extensionPanels = useExtensionCatalog((state) => state.installedPanels);
@@ -57,9 +65,9 @@ export default function PanelCatalogProvider(props: PropsWithChildren): React.Re
   // Re-call the function when the language changes to ensure that the panel's information is successfully translated
   const allPanelsInfo = useMemo(() => {
     return {
-      builtin: panels.getBuiltin(t),
+      builtin: [...panels.getBuiltin(t), ...(extraPanels ?? [])],
     };
-  }, [t]);
+  }, [t, extraPanels]);
 
   const allPanels = useMemo(() => {
     return [...allPanelsInfo.builtin, ...wrappedExtensionPanels];

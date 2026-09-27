@@ -35,6 +35,7 @@ export function SharedRoot(
     enableGlobalCss = false,
     enableLaunchPreferenceScreen,
     extensionLoaders,
+    extraPanels,
     extraProviders,
   } = props;
 
@@ -49,7 +50,8 @@ export function SharedRoot(
       deepLinks,
       enableLaunchPreferenceScreen,
       extensionLoaders,
-      extraProviders,
+      extraPanels,
+    extraProviders,
       onAppBarDoubleClick,
     }),
     [
@@ -62,7 +64,8 @@ export function SharedRoot(
       deepLinks,
       enableLaunchPreferenceScreen,
       extensionLoaders,
-      extraProviders,
+      extraPanels,
+    extraProviders,
       onAppBarDoubleClick,
     ],
   );

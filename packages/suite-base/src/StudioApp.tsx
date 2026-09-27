@@ -56,6 +56,7 @@ export function StudioApp(): React.JSX.Element {
     deepLinks,
     enableLaunchPreferenceScreen,
     extraProviders,
+    extraPanels,
     appBarLeftInset,
     customWindowControlProps,
     onAppBarDoubleClick,
@@ -128,7 +129,7 @@ export function StudioApp(): React.JSX.Element {
         <SendNotificationToastAdapter />
         <DndProvider backend={HTML5Backend}>
           <Suspense fallback={<></>}>
-            <PanelCatalogProvider>
+            <PanelCatalogProvider extraPanels={extraPanels}>
               <Workspace
                 deepLinks={deepLinks}
                 appBarLeftInset={appBarLeftInset}

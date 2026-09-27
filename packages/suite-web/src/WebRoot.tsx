@@ -16,6 +16,7 @@ import {
   IDataSourceFactory,
   IdbExtensionLoader,
   McapLocalDataSourceFactory,
+  PanelInfo,
   RemoteDataSourceFactory,
   RemoteExtensionLoader,
   Ros1LocalBagDataSourceFactory,
@@ -34,6 +35,8 @@ const isDevelopment = process.env.NODE_ENV === "development";
 
 export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
+  /** Panels added to the built-in panel catalog. */
+  extraPanels?: PanelInfo[];
   dataSources: IDataSourceFactory[] | undefined;
   /**
    * Replaces the built-in extension loaders, or — when given a function — receives them so an
@@ -111,6 +114,7 @@ export function WebRoot(props: {
       extensionLoaders={extensionLoaders}
       enableGlobalCss
       extraProviders={props.extraProviders}
+      extraPanels={props.extraPanels}
       AppBarComponent={props.AppBarComponent}
     >
       {props.children}

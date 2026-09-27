@@ -3,8 +3,8 @@
 HMND's web entrypoint for Lichtblick Suite. It builds the same suite as `web/`,
 but wired for embedding in HMND tooling rather than for standalone use:
 
-- data sources limited to Foxglove WebSocket (live robots), local MCAP and local
-  ROS 2 bags (fault investigation of recordings);
+- data sources limited to Foxglove WebSocket (live robots), local MCAP, remote
+  MCAP files and local ROS 2 bags (fault investigation of recordings);
 - the app bar is hidden, unless the URL carries `?hmnd-appbar=1` — layout
   authoring needs it;
 - the open-on-startup data source dialog is off by default;
@@ -26,3 +26,35 @@ it is mounted at.
 
 Beyond the parameters suite-base itself understands (`ds`, `ds.*`, `layoutUrl`,
 `layout`, …), this entrypoint adds `hmnd-appbar=1` to un-hide the app bar.
+
+## Downstream entrypoint with extra panels
+
+`src/index.ts` exports `main(params?: { extraPanels?: PanelInfo[] }): Promise<void>`.
+`src/entrypoint.tsx` calls `main()` with no panels. `extraPanels` are added to
+the built-in panel catalog through the `extraPanels` prop of `WebRoot`.
+
+A downstream build uses its own entry file and its own webpack config:
+
+```ts
+// my-entry/src/entrypoint.tsx
+import { main } from "<fork>/web-hmnd/src";
+
+void main({
+  extraPanels: [
+    { title: "My panel", type: "MyPanel", module: async () => await import("./MyPanel") },
+  ],
+});
+```
+
+```ts
+// my-entry/webpack.config.ts
+import path from "path";
+
+import { makeWebHmndConfig } from "<fork>/web-hmnd/webpack.config";
+
+export default makeWebHmndConfig({
+  contextPath: path.resolve(__dirname, "src"), // must also contain a tsconfig.json
+  entrypoint: "./entrypoint.tsx",
+  outputPath: path.resolve(__dirname, ".webpack"),
+});
+```
