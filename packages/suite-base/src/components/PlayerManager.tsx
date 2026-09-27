@@ -202,10 +202,11 @@ export default function PlayerManager(
               metricsCollector,
               params: args.params,
               sourceMetadata: args.sourceMetadata,
+              playbackRange: args.playbackRange,
             });
             setBasePlayer(newPlayer);
 
-            if (args.params?.url) {
+            if (args.params?.url && !args.skipRecent) {
               addRecent({
                 type: "connection",
                 sourceId: foundSource.id,
@@ -238,6 +239,7 @@ export default function PlayerManager(
                 file: multiFile ? undefined : file,
                 files: multiFile ? fileList : undefined,
                 metricsCollector,
+                playbackRange: args.playbackRange,
               });
 
               setBasePlayer(newPlayer);
@@ -264,6 +266,7 @@ export default function PlayerManager(
               const newPlayer = foundSource.initialize({
                 files: filesHandled,
                 metricsCollector,
+                playbackRange: args.playbackRange,
               });
 
               setBasePlayer(newPlayer);

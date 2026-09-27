@@ -70,7 +70,10 @@ import {
 } from "@lichtblick/suite-base/context/CurrentUserContext";
 import { EventsStore, useEvents } from "@lichtblick/suite-base/context/EventsContext";
 import { useLayoutManager } from "@lichtblick/suite-base/context/LayoutManagerContext";
-import { usePlayerSelection } from "@lichtblick/suite-base/context/PlayerSelectionContext";
+import {
+  type PlaybackRange,
+  usePlayerSelection,
+} from "@lichtblick/suite-base/context/PlayerSelectionContext";
 import {
   LeftSidebarItemKey,
   RightSidebarItemKey,
@@ -499,10 +502,36 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     };
   }, [dialogActions.dataSource, dialogActions.openFile, sidebarActions.left, sidebarActions.right]);
 
-  const targetUrlState = useMemo(() => {
+  const targetUrlResult = useMemo(() => {
     const deepLinks = props.deepLinks ?? [];
-    return deepLinks[0] ? parseAppURLState(new URL(deepLinks[0])) : undefined;
+    if (!deepLinks[0]) {
+      return { error: undefined, state: undefined };
+    }
+
+    try {
+      return { error: undefined, state: parseAppURLState(new URL(deepLinks[0])) };
+    } catch (error: unknown) {
+      return {
+        error: error instanceof Error ? error : new Error(String(error)),
+        state: undefined,
+      };
+    }
   }, [props.deepLinks]);
+  const targetUrlState = targetUrlResult.state;
+  const targetPlaybackRange = useMemo<PlaybackRange | undefined>(
+    () =>
+      targetUrlState?.startTime || targetUrlState?.endTime
+        ? { start: targetUrlState.startTime, end: targetUrlState.endTime }
+        : undefined,
+    [targetUrlState?.endTime, targetUrlState?.startTime],
+  );
+
+  useEffect(() => {
+    if (targetUrlResult.error) {
+      log.error("Failed to parse deep link URL:", targetUrlResult.error);
+      enqueueSnackbar(targetUrlResult.error.message, { variant: "error" });
+    }
+  }, [enqueueSnackbar, targetUrlResult.error]);
 
   const [unappliedSourceArgs, setUnappliedSourceArgs] = useState<
     | {
@@ -510,6 +539,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         dsParams: Record<string, string> | undefined;
         sourceMetadata?: Record<string, unknown>[];
         layoutUrl?: string;
+        playbackRange?: PlaybackRange;
+        skipRecent?: boolean;
       }
     | undefined
   >(
@@ -518,6 +549,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           ds: targetUrlState.ds,
           dsParams: targetUrlState.dsParams,
           layoutUrl: targetUrlState.layoutUrl,
+          playbackRange: targetPlaybackRange,
         }
       : undefined,
   );
@@ -545,6 +577,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
           ds: "remote-file",
           dsParams: { url: urls.join(",") },
           sourceMetadata: mcaps.map((mcap) => mcap.metadata),
+          playbackRange: targetPlaybackRange,
+          skipRecent: true,
         });
       } catch (error) {
         if (signal.aborted) {
@@ -558,7 +592,7 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
     return () => {
       controller.abort();
     };
-  }, [targetUrlState?.mcapBundleId, enqueueSnackbar]);
+  }, [enqueueSnackbar, targetPlaybackRange, targetUrlState?.mcapBundleId]);
 
   const selectEvent = useEvents(selectSelectEvent);
 
@@ -638,6 +672,8 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
         type: "connection",
         params: unappliedSourceArgs.dsParams,
         sourceMetadata: unappliedSourceArgs.sourceMetadata,
+        playbackRange: unappliedSourceArgs.playbackRange,
+        skipRecent: unappliedSourceArgs.skipRecent,
       });
       selectEvent(unappliedSourceArgs.dsParams?.eventId);
       shouldUpdate = true;
@@ -650,7 +686,13 @@ function WorkspaceContent(props: WorkspaceProps): React.JSX.Element {
       shouldUpdate = true;
     }
     if (shouldUpdate) {
-      setUnappliedSourceArgs({ ds: undefined, dsParams: undefined, layoutUrl: undefined });
+      setUnappliedSourceArgs({
+        ds: undefined,
+        dsParams: undefined,
+        layoutUrl: undefined,
+        playbackRange: undefined,
+        skipRecent: undefined,
+      });
     }
   }, [fetchLayoutFromUrl, selectEvent, selectSource, unappliedSourceArgs, setUnappliedSourceArgs]);
 

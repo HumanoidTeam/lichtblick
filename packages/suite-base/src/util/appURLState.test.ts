@@ -130,6 +130,32 @@ describe("app state url parser", () => {
       });
     });
 
+    it("parses playback bounds in RFC3339 and seconds.nanoseconds formats", () => {
+      const url = urlBuilder();
+      url.searchParams.append("startTime", "1751378709.331000000");
+      url.searchParams.append("endTime", "2025-07-01T14:05:10.331293771Z");
+
+      const parsed = parseAppURLState(url);
+
+      expect(parsed).toMatchObject({
+        startTime: { sec: 1751378709, nsec: 331000000 },
+        endTime: { sec: 1751378710, nsec: 331293771 },
+      });
+    });
+
+    it("rejects invalid or inverted playback bounds", () => {
+      const invalidUrl = urlBuilder();
+      invalidUrl.searchParams.set("startTime", "not-a-time");
+      expect(() => parseAppURLState(invalidUrl)).toThrow("Invalid startTime URL parameter");
+
+      const invertedUrl = urlBuilder();
+      invertedUrl.searchParams.set("startTime", "2.000000000");
+      invertedUrl.searchParams.set("endTime", "1.000000000");
+      expect(() => parseAppURLState(invertedUrl)).toThrow(
+        "Invalid playback range: startTime must be before or equal to endTime",
+      );
+    });
+
     it("parses layoutUrl from URL", () => {
       const url = urlBuilder();
       url.searchParams.append("layoutUrl", "http://example.com/layout.json");
@@ -252,6 +278,19 @@ describe("updateAppURLState", () => {
     const result = updateAppURLState(baseURL, urlState);
 
     expect(result.searchParams.get("layoutUrl")).toBe("http://example.com/layout.json");
+  });
+
+  it("encodes and removes playback bounds", () => {
+    const startTime: Time = { sec: 1, nsec: 2 };
+    const endTime: Time = { sec: 3, nsec: 4 };
+    const result = updateAppURLState(baseURL, { startTime, endTime });
+
+    expect(result.searchParams.get("startTime")).toBe(toRFC3339String(startTime));
+    expect(result.searchParams.get("endTime")).toBe(toRFC3339String(endTime));
+
+    const removed = updateAppURLState(result, { startTime: undefined, endTime: undefined });
+    expect(removed.searchParams.has("startTime")).toBe(false);
+    expect(removed.searchParams.has("endTime")).toBe(false);
   });
 
   it("encodes both ds and layoutUrl", () => {

@@ -7,9 +7,15 @@
 
 import { createContext, useContext } from "react";
 
+import { Time } from "@lichtblick/rostime";
 import { LayoutData } from "@lichtblick/suite-base/context/CurrentLayoutContext/actions";
 import { Player, PlayerMetricsCollectorInterface } from "@lichtblick/suite-base/players/types";
 import { RegisteredIconNames } from "@lichtblick/suite-base/types/Icons";
+
+export type PlaybackRange = {
+  start?: Time;
+  end?: Time;
+};
 
 export type DataSourceFactoryInitializeArgs = {
   metricsCollector: PlayerMetricsCollectorInterface;
@@ -17,6 +23,7 @@ export type DataSourceFactoryInitializeArgs = {
   files?: File[];
   params?: Record<string, string | undefined>;
   sourceMetadata?: Record<string, unknown>[];
+  playbackRange?: PlaybackRange;
 };
 
 export type DataSourceFactoryType = "file" | "connection" | "sample";
@@ -87,12 +94,16 @@ type FileDataSourceArgs = {
   type: "file";
   files?: File[];
   handles?: FileSystemFileHandle[]; // foxglove-depcheck-used: @types/wicg-file-system-access
+  playbackRange?: PlaybackRange;
 };
 
 type ConnectionDataSourceArgs = {
   type: "connection";
   params?: Record<string, string | undefined>;
   sourceMetadata?: Record<string, unknown>[];
+  playbackRange?: PlaybackRange;
+  /** Do not persist credentials or short-lived URLs in the recent-sources store. */
+  skipRecent?: boolean;
 };
 
 export type DataSourceArgs = FileDataSourceArgs | ConnectionDataSourceArgs;

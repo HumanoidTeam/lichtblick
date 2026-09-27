@@ -7,7 +7,7 @@
 
 import * as _ from "lodash-es";
 
-import { Time, toRFC3339String } from "@lichtblick/rostime";
+import { Time, compare, toRFC3339String } from "@lichtblick/rostime";
 import { LayoutID } from "@lichtblick/suite-base/context/CurrentLayoutContext";
 import { parseTimeUrlString } from "@lichtblick/suite-base/util/time";
 
@@ -21,6 +21,8 @@ export type AppURLState = {
   layoutId?: LayoutID;
   mcapBundleId?: string;
   time?: Time;
+  startTime?: Time;
+  endTime?: Time;
 };
 
 /**
@@ -38,6 +40,22 @@ export function updateAppURLState(url: URL, urlState: AppURLState): URL {
       newURL.searchParams.set("time", toRFC3339String(urlState.time));
     } else {
       newURL.searchParams.delete("time");
+    }
+  }
+
+  if ("startTime" in urlState) {
+    if (urlState.startTime) {
+      newURL.searchParams.set("startTime", toRFC3339String(urlState.startTime));
+    } else {
+      newURL.searchParams.delete("startTime");
+    }
+  }
+
+  if ("endTime" in urlState) {
+    if (urlState.endTime) {
+      newURL.searchParams.set("endTime", toRFC3339String(urlState.endTime));
+    } else {
+      newURL.searchParams.delete("endTime");
     }
   }
 
@@ -92,6 +110,12 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
   const mcapBundleId = url.searchParams.get("mcap-bundle") ?? undefined;
   const timeString = url.searchParams.get("time");
   const time = parseTimeUrlString(timeString ?? undefined);
+  const startTime = parsePlaybackBound(url, "startTime");
+  const endTime = parsePlaybackBound(url, "endTime");
+
+  if (startTime && endTime && compare(startTime, endTime) > 0) {
+    throw new Error("Invalid playback range: startTime must be before or equal to endTime");
+  }
   const dsParams: Record<string, string> = {};
   url.searchParams.forEach((v, k) => {
     if (k && v && k.startsWith("ds.")) {
@@ -109,6 +133,8 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
   const state: AppURLState = _.omitBy(
     {
       time,
+      startTime,
+      endTime,
       ds,
       layoutUrl,
       mcapBundleId,
@@ -118,6 +144,19 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
   );
 
   return _.isEmpty(state) ? undefined : state;
+}
+
+function parsePlaybackBound(url: URL, parameterName: "startTime" | "endTime"): Time | undefined {
+  if (!url.searchParams.has(parameterName)) {
+    return undefined;
+  }
+
+  const value = url.searchParams.get(parameterName);
+  const parsed = parseTimeUrlString(value ?? undefined);
+  if (!parsed) {
+    throw new Error(`Invalid ${parameterName} URL parameter`);
+  }
+  return parsed;
 }
 
 /**

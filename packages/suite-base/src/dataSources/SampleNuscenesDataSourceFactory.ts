@@ -58,6 +58,7 @@ class SampleNuscenesDataSourceFactory implements IDataSourceFactory {
       // Use blank url params so the data source is set in the url
       urlParams: {},
       sourceId: this.id,
+      playbackRange: args.playbackRange,
       readAheadDuration: SAMPLE_NUSCENES_DATA_SOURCE_READ_AHEAD_DURATION,
       // The sample is an MCAP that can carry foxglove.CompressedVideo. Some codecs (e.g. H.265)
       // cannot decode a P/B-frame in isolation, so on a backward seek the backfill is expanded to

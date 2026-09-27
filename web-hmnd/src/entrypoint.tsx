@@ -17,6 +17,7 @@ void main(async () => {
     AppSetting,
     FoxgloveWebSocketDataSourceFactory,
     McapLocalDataSourceFactory,
+    RemoteDataSourceFactory,
     Ros2LocalBagDataSourceFactory,
     StudioApp,
   } = await import("@lichtblick/suite-base");
@@ -52,6 +53,7 @@ void main(async () => {
         dataSources={[
           new FoxgloveWebSocketDataSourceFactory(),
           new McapLocalDataSourceFactory(),
+          new RemoteDataSourceFactory(),
           new Ros2LocalBagDataSourceFactory(),
         ]}
         extensionLoaders={(defaultLoaders) => [...defaultLoaders, new BundledExtensionLoader()]}

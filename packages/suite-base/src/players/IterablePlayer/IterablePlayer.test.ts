@@ -277,6 +277,56 @@ describe("IterablePlayer", () => {
     await player.isClosed;
   });
 
+  it("limits the exposed timeline to the configured playback range", async () => {
+    const source = new TestSource();
+    const player = new IterablePlayer({
+      source,
+      enablePreload: false,
+      sourceId: "test",
+      playbackRange: { start: fromSec(0.25), end: fromSec(0.75) },
+    });
+    const store = new PlayerStateStore(4);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+
+    const playerStates = await store.done;
+    expect(playerStates[1]?.activeData).toMatchObject({
+      currentTime: fromSec(0.25),
+      startTime: fromSec(0.25),
+      endTime: fromSec(0.75),
+    });
+    expect(playerStates[2]?.activeData).toMatchObject({
+      currentTime: fromSec(0.349),
+      startTime: fromSec(0.25),
+      endTime: fromSec(0.75),
+    });
+
+    player.close();
+    await player.isClosed;
+  });
+
+  it("reports an invalid playback range during initialization", async () => {
+    const player = new IterablePlayer({
+      source: new TestSource(),
+      enablePreload: false,
+      sourceId: "test",
+      playbackRange: { start: fromSec(0.75), end: fromSec(0.25) },
+    });
+    const store = new PlayerStateStore(2);
+    player.setListener(async (state) => {
+      await store.add(state);
+    });
+
+    const playerStates = await store.done;
+    expect(playerStates[1]?.presence).toBe(PlayerPresence.ERROR);
+    expect(playerStates[1]?.alerts?.[0]?.message).toContain("Invalid playback range");
+    (console.error as jest.Mock).mockClear();
+
+    player.close();
+    await player.isClosed;
+  });
+
   it("when seeking during a seek backfill, start another seek after the current one exits", async () => {
     const source = new TestSource();
     const topic = BasicBuilder.string();

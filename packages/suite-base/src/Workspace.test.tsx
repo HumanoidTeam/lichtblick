@@ -418,7 +418,11 @@ describe("Workspace - session-based MCAP resolution", () => {
       { url: "https://example.com/file2.mcap", metadata: { robot: "r2" } },
     ];
     mockGetMcapBundle.mockResolvedValue(mockMcaps);
-    (parseAppURLState as jest.Mock).mockReturnValue({ mcapBundleId });
+    (parseAppURLState as jest.Mock).mockReturnValue({
+      mcapBundleId,
+      startTime: { sec: 10, nsec: 20 },
+      endTime: { sec: 30, nsec: 40 },
+    });
 
     // When
     render(<Workspace deepLinks={["https://app.example.com/?mcap-bundle=test-session-123"]} />);
@@ -432,6 +436,11 @@ describe("Workspace - session-based MCAP resolution", () => {
         type: "connection",
         params: { url: "https://example.com/file1.mcap,https://example.com/file2.mcap" },
         sourceMetadata: [{ robot: "r1" }, { robot: "r2" }],
+        playbackRange: {
+          start: { sec: 10, nsec: 20 },
+          end: { sec: 30, nsec: 40 },
+        },
+        skipRecent: true,
       });
     });
   });

@@ -47,6 +47,7 @@ class UlogLocalDataSourceFactory implements IDataSourceFactory {
       source,
       name: file.name,
       sourceId: this.id,
+      playbackRange: args.playbackRange,
     });
   }
 }

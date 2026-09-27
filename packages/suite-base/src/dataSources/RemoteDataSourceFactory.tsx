@@ -123,6 +123,7 @@ class RemoteDataSourceFactory implements IDataSourceFactory {
       metricsCollector: args.metricsCollector,
       urlParams: { urls },
       sourceId: this.id,
+      playbackRange: args.playbackRange,
       readAheadDuration: { sec: 10, nsec: 0 },
       // MCAP can carry foxglove.CompressedVideo. Some codecs (e.g. H.265) cannot decode a P/B-frame
       // in isolation, so on a backward seek the backfill is expanded to include the preceding GOP.

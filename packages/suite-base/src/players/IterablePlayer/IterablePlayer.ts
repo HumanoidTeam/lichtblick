@@ -23,6 +23,7 @@ import {
   toString,
 } from "@lichtblick/rostime";
 import { Immutable, MessageEvent, Metadata, ParameterValue } from "@lichtblick/suite";
+import type { PlaybackRange } from "@lichtblick/suite-base/context/PlayerSelectionContext";
 import { DeserializedSourceWrapper } from "@lichtblick/suite-base/players/IterablePlayer/DeserializedSourceWrapper";
 import { DeserializingIterableSource } from "@lichtblick/suite-base/players/IterablePlayer/DeserializingIterableSource";
 import { freezeMetadata } from "@lichtblick/suite-base/players/IterablePlayer/freezeMetadata";
@@ -126,6 +127,9 @@ type IterablePlayerOptions = {
   // Optional hook to expand the seek backfill (e.g. replay a video GOP). No-op when omitted,
   // keeping the player free of codec-specific knowledge.
   expandBackfill?: ExpandBackfill;
+
+  // Optional bounds that limit the source timeline exposed by this player.
+  playbackRange?: PlaybackRange;
 };
 
 type IterablePlayerState =
@@ -158,6 +162,7 @@ export class IterablePlayer implements Player {
   #start?: Time;
   #end?: Time;
   #enablePreload = true;
+  readonly #playbackRange?: PlaybackRange;
   readonly #expandBackfill?: ExpandBackfill;
 
   // next read start time indicates where to start reading for the next tick
@@ -235,6 +240,7 @@ export class IterablePlayer implements Player {
       sourceId,
       readAheadDuration = { sec: 10, nsec: 0 },
       expandBackfill,
+      playbackRange,
     } = options;
 
     this.#iterableSource = source;
@@ -259,6 +265,7 @@ export class IterablePlayer implements Player {
 
     this.#enablePreload = enablePreload ?? true;
     this.#sourceId = sourceId;
+    this.#playbackRange = playbackRange;
     this.#expandBackfill = expandBackfill;
 
     this.isClosed = new Promise((resolveClose) => {
@@ -435,11 +442,20 @@ export class IterablePlayer implements Player {
   ): AsyncIterableIterator<Readonly<IteratorResult>> | undefined {
     const topicSelection = new Map([[topic, { topic }]]);
 
+    const start =
+      options?.start && this.#start && this.#end
+        ? clampTime(options.start, this.#start, this.#end)
+        : options?.start;
+    const end =
+      options?.end && this.#start && this.#end
+        ? clampTime(options.end, this.#start, this.#end)
+        : options?.end;
+
     return this.#messageRangeSource?.messageIterator({
       topics: topicSelection,
       consumptionType: "full",
-      start: options?.start,
-      end: options?.end,
+      start,
+      end,
     });
   }
 
@@ -589,10 +605,29 @@ export class IterablePlayer implements Player {
         metadata,
       } = initResult;
 
+      if (
+        this.#playbackRange?.start &&
+        this.#playbackRange.end &&
+        compare(this.#playbackRange.start, this.#playbackRange.end) > 0
+      ) {
+        throw new Error("Invalid playback range: start must be before or equal to end");
+      }
+
+      const effectiveStart = this.#playbackRange?.start
+        ? clampTime(this.#playbackRange.start, start, end)
+        : start;
+      const effectiveEnd = this.#playbackRange?.end
+        ? clampTime(this.#playbackRange.end, start, end)
+        : end;
+
+      if (compare(effectiveStart, effectiveEnd) > 0) {
+        throw new Error("Invalid playback range: start must be before or equal to end");
+      }
+
       // Prior to initialization, the seekTarget may have been set to an out-of-bounds value
       // This brings the value in bounds
       if (this.#seekTarget) {
-        this.#seekTarget = clampTime(this.#seekTarget, start, end);
+        this.#seekTarget = clampTime(this.#seekTarget, effectiveStart, effectiveEnd);
       }
 
       this.#metadata = metadata ?? [];
@@ -603,9 +638,9 @@ export class IterablePlayer implements Player {
       freezeMetadata(this.#metadata);
 
       this.#profile = profile;
-      this.#start = start;
-      this.#currentTime = this.#seekTarget ?? start;
-      this.#end = end;
+      this.#start = effectiveStart;
+      this.#currentTime = this.#seekTarget ?? effectiveStart;
+      this.#end = effectiveEnd;
       this.#publishedTopics = publishersByTopic;
       this.#providerDatatypes = datatypes;
       this.#name = name ?? this.#name;

@@ -48,6 +48,7 @@ class Ros2LocalBagDataSourceFactory implements IDataSourceFactory {
       source,
       name,
       sourceId: this.id,
+      playbackRange: args.playbackRange,
       readAheadDuration: { sec: 120, nsec: 0 },
     });
   }
