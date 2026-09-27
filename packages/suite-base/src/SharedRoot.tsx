@@ -51,7 +51,7 @@ export function SharedRoot(
       enableLaunchPreferenceScreen,
       extensionLoaders,
       extraPanels,
-    extraProviders,
+      extraProviders,
       onAppBarDoubleClick,
     }),
     [
@@ -65,7 +65,7 @@ export function SharedRoot(
       enableLaunchPreferenceScreen,
       extensionLoaders,
       extraPanels,
-    extraProviders,
+      extraProviders,
       onAppBarDoubleClick,
     ],
   );

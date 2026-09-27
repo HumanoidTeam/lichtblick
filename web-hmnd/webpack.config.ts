@@ -29,7 +29,9 @@ export type WebHmndConfigOptions = {
  * Makes the web-hmnd webpack configs. A downstream build can call this from its own webpack
  * config with an entry file that imports `main` from `web-hmnd/src/index.ts` and passes its panels.
  */
-export function makeWebHmndConfig(options: WebHmndConfigOptions = {}): (WebpackConfiguration | ReturnType<typeof mainConfig>)[] {
+export function makeWebHmndConfig(
+  options: WebHmndConfigOptions = {},
+): (WebpackConfiguration | ReturnType<typeof mainConfig>)[] {
   const params: ConfigParams = {
     outputPath: options.outputPath ?? path.resolve(__dirname, ".webpack"),
     contextPath: options.contextPath ?? path.resolve(__dirname, "src"),

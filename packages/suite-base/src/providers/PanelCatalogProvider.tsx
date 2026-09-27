@@ -28,9 +28,7 @@ type PanelCatalogProviderProps = PropsWithChildren<{
   extraPanels?: readonly PanelInfo[];
 }>;
 
-export default function PanelCatalogProvider(
-  props: PanelCatalogProviderProps,
-): React.ReactElement {
+export default function PanelCatalogProvider(props: PanelCatalogProviderProps): React.ReactElement {
   const { extraPanels } = props;
   const { t } = useTranslation("panels");
 

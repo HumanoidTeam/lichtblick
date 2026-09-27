@@ -100,38 +100,38 @@ it.each([
   { timestampMethod: "receiveTime" as const, derivative: true },
   { timestampMethod: "headerStamp" as const, derivative: false },
   { timestampMethod: "headerStamp" as const, derivative: true },
-])(
-  "preserves $timestampMethod observations/gaps/CSV, derivative=$derivative",
-  ({ timestampMethod, derivative }) => {
-    const builder = new TimestampDatasetsBuilderImpl();
-    const config = {
-      ...series,
-      timestampMethod,
-      parsed: { ...series.parsed, modifier: derivative ? "derivative" : undefined },
-    };
-    builder.applyActions([
-      { type: "update-series-config", seriesItems: [config] },
-      { type: "append-full", series: series.key, items: samples.slice(0, 2) },
-      { type: "append-current", series: series.key, items: samples.slice(2) },
-    ]);
-    const original = builder.getViewportDatasets(viewport)[2]!;
-    const csv = builder.getCsvData().map((d) => ({ ...d, data: d.data.map((p) => ({ ...p })) }));
-    expect(csv[0]?.data).toMatchObject(samples);
-    expect(original.data).toHaveLength(derivative ? 3 : 4);
-    expect(original.data[derivative ? 1 : 2]).toEqual({ x: NaN, y: NaN, value: NaN });
-    expect(original.data.filter((p) => !isNaN(p.y)).map((p) => p.y)).toEqual(
-      derivative ? [300, 400] : samples.map((p) => p.y),
-    );
-    builder.applyActions([
-      { type: "update-series-config", seriesItems: [{ ...config, yAxisID: "yRight" }] },
-    ]);
-    expect(builder.getViewportDatasets(viewport)[2]).toMatchObject({
-      yAxisID: "yRight",
-      data: original.data,
-    });
-    expect(builder.getCsvData()).toEqual(csv);
-  },
-);
+])("preserves $timestampMethod observations/gaps/CSV, derivative=$derivative", ({
+  timestampMethod,
+  derivative,
+}) => {
+  const builder = new TimestampDatasetsBuilderImpl();
+  const config = {
+    ...series,
+    timestampMethod,
+    parsed: { ...series.parsed, modifier: derivative ? "derivative" : undefined },
+  };
+  builder.applyActions([
+    { type: "update-series-config", seriesItems: [config] },
+    { type: "append-full", series: series.key, items: samples.slice(0, 2) },
+    { type: "append-current", series: series.key, items: samples.slice(2) },
+  ]);
+  const original = builder.getViewportDatasets(viewport)[2]!;
+  const csv = builder.getCsvData().map((d) => ({ ...d, data: d.data.map((p) => ({ ...p })) }));
+  expect(csv[0]?.data).toMatchObject(samples);
+  expect(original.data).toHaveLength(derivative ? 3 : 4);
+  expect(original.data[derivative ? 1 : 2]).toEqual({ x: NaN, y: NaN, value: NaN });
+  expect(original.data.filter((p) => !isNaN(p.y)).map((p) => p.y)).toEqual(
+    derivative ? [300, 400] : samples.map((p) => p.y),
+  );
+  builder.applyActions([
+    { type: "update-series-config", seriesItems: [{ ...config, yAxisID: "yRight" }] },
+  ]);
+  expect(builder.getViewportDatasets(viewport)[2]).toMatchObject({
+    yAxisID: "yRight",
+    data: original.data,
+  });
+  expect(builder.getCsvData()).toEqual(csv);
+});
 
 describe.each([undefined, { min: 1000, max: 2000 }])("right bounds %j", (yRight) => {
   const disjointViewport: Viewport = {

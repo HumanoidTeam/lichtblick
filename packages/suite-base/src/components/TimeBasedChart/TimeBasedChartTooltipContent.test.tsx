@@ -47,20 +47,21 @@ it("highlights the requested dataset after sorting without losing grouped overfl
   expect(container.querySelector("[data-highlighted]")).toBeNull();
 });
 
-it.each([undefined, 0, 99])(
-  "leaves other callers and unmatched indices unhighlighted (%s)",
-  (highlightedSeriesIndex) => {
-    const { container } = render(
-      <ThemeProvider isDark>
-        <TimeBasedChartTooltipContent
-          content={content}
-          multiDataset
-          labelsByConfigIndex={labels}
-          {...{ highlightedSeriesIndex }}
-        />
-      </ThemeProvider>,
-    );
-    expect(container.querySelector("[data-highlighted]")).toBeNull();
-    expect(screen.getByText("Nearest sample")).toBeVisible();
-  },
-);
+it.each([
+  undefined,
+  0,
+  99,
+])("leaves other callers and unmatched indices unhighlighted (%s)", (highlightedSeriesIndex) => {
+  const { container } = render(
+    <ThemeProvider isDark>
+      <TimeBasedChartTooltipContent
+        content={content}
+        multiDataset
+        labelsByConfigIndex={labels}
+        {...{ highlightedSeriesIndex }}
+      />
+    </ThemeProvider>,
+  );
+  expect(container.querySelector("[data-highlighted]")).toBeNull();
+  expect(screen.getByText("Nearest sample")).toBeVisible();
+});

@@ -666,20 +666,36 @@ export function normalizeImportedLayoutData(data: unknown): LayoutData {
 }
 
 function validateImportedCallServiceConfig(panelId: string, config: Record<string, unknown>): void {
-  const stringFields = ["serviceName", "requestPayload", "buttonText", "buttonTooltip", "buttonColor"];
+  const stringFields = [
+    "serviceName",
+    "requestPayload",
+    "buttonText",
+    "buttonTooltip",
+    "buttonColor",
+  ];
   for (const field of stringFields) {
     if (config[field] !== undefined && typeof config[field] !== "string") {
       throw new Error(`invalid CallService config for "${panelId}": ${field} must be a string`);
     }
   }
-  if (config.layout !== undefined && config.layout !== "vertical" && config.layout !== "horizontal") {
-    throw new Error(`invalid CallService config for "${panelId}": layout must be vertical or horizontal`);
+  if (
+    config.layout !== undefined &&
+    config.layout !== "vertical" &&
+    config.layout !== "horizontal"
+  ) {
+    throw new Error(
+      `invalid CallService config for "${panelId}": layout must be vertical or horizontal`,
+    );
   }
   if (
     config.timeoutSeconds !== undefined &&
-    (typeof config.timeoutSeconds !== "number" || !Number.isFinite(config.timeoutSeconds) || config.timeoutSeconds < 0)
+    (typeof config.timeoutSeconds !== "number" ||
+      !Number.isFinite(config.timeoutSeconds) ||
+      config.timeoutSeconds < 0)
   ) {
-    throw new Error(`invalid CallService config for "${panelId}": timeoutSeconds must be a non-negative finite number`);
+    throw new Error(
+      `invalid CallService config for "${panelId}": timeoutSeconds must be a non-negative finite number`,
+    );
   }
   if (typeof config.requestPayload === "string") {
     try {
@@ -695,16 +711,24 @@ function validateImportedPlotConfig(panelId: string, config: Record<string, unkn
   if (config.legendDisplay !== undefined) {
     const normalizedLegendDisplay = String(config.legendDisplay).toLowerCase();
     if (!legalLegendDisplays.has(normalizedLegendDisplay)) {
-      throw new Error(`invalid Plot config for "${panelId}": legendDisplay must be floating, left, top, or none`);
+      throw new Error(
+        `invalid Plot config for "${panelId}": legendDisplay must be floating, left, top, or none`,
+      );
     }
     config.legendDisplay = normalizedLegendDisplay;
   }
   if (config.paths !== undefined && !Array.isArray(config.paths)) {
     throw new Error(`invalid Plot config for "${panelId}": paths must be an array`);
   }
-  for (const [index, rawPath] of (config.paths as unknown[] | undefined ?? []).entries()) {
-    if (!isPlainObject(rawPath) || typeof rawPath.value !== "string" || rawPath.value.length === 0) {
-      throw new Error(`invalid Plot config for "${panelId}": paths[${index}].value must be a non-empty string`);
+  for (const [index, rawPath] of ((config.paths as unknown[] | undefined) ?? []).entries()) {
+    if (
+      !isPlainObject(rawPath) ||
+      typeof rawPath.value !== "string" ||
+      rawPath.value.length === 0
+    ) {
+      throw new Error(
+        `invalid Plot config for "${panelId}": paths[${index}].value must be a non-empty string`,
+      );
     }
   }
 }

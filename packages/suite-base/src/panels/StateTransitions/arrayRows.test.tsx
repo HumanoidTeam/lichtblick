@@ -187,15 +187,16 @@ describe("State Transitions expanded primitive arrays", () => {
     ]);
   });
 
-  it.each([`${TOPIC}.values`, `${TOPIC}.values[:].state`, `${TOPIC}.nested[:].values[:]`])(
-    "reports unsupported array selector %s without guessing identities",
-    (value) => {
-      const result = convert([], { ...expanded, value });
-      expect(result.pathState[0]?.arrayError).toBe(true);
-      expect(result.data.datasets).toEqual([]);
-      expect(result.legendRows).toHaveLength(1);
-    },
-  );
+  it.each([
+    `${TOPIC}.values`,
+    `${TOPIC}.values[:].state`,
+    `${TOPIC}.nested[:].values[:]`,
+  ])("reports unsupported array selector %s without guessing identities", (value) => {
+    const result = convert([], { ...expanded, value });
+    expect(result.pathState[0]?.arrayError).toBe(true);
+    expect(result.data.datasets).toEqual([]);
+    expect(result.legendRows).toHaveLength(1);
+  });
 
   it("reports object arrays instead of grouping values by their nice ids", () => {
     const result = convert([message(0, [{ id: 1 }, { id: 1 }])]);

@@ -40,23 +40,24 @@ describe("buildSettingsTree", () => {
     expect(explicit.paths?.children?.["0"]?.fields?.color?.value).toBe("purple");
   });
 
-  it.each(["index", "custom", "currentCustom"] as const)(
-    "disables timestamp array expansion in %s mode without clearing the saved opt-in",
-    (xAxisVal) => {
-      const tree = buildSettingsTree(
-        PlotBuilder.config({
-          paths: [PlotBuilder.path({ expandArrays: true, color: undefined })],
-          xAxisVal,
-        }),
-        t,
-      );
-      expect(tree.paths?.children?.["0"]?.fields?.expandArrays).toMatchObject({
-        value: true,
-        disabled: true,
-      });
-      expect(tree.paths?.children?.["0"]?.fields?.color?.value).toBe(lineColors[0]);
-    },
-  );
+  it.each([
+    "index",
+    "custom",
+    "currentCustom",
+  ] as const)("disables timestamp array expansion in %s mode without clearing the saved opt-in", (xAxisVal) => {
+    const tree = buildSettingsTree(
+      PlotBuilder.config({
+        paths: [PlotBuilder.path({ expandArrays: true, color: undefined })],
+        xAxisVal,
+      }),
+      t,
+    );
+    expect(tree.paths?.children?.["0"]?.fields?.expandArrays).toMatchObject({
+      value: true,
+      disabled: true,
+    });
+    expect(tree.paths?.children?.["0"]?.fields?.color?.value).toBe(lineColors[0]);
+  });
 
   it("offers default-left and saved-right assignment with independent unit labels and bounds", () => {
     const config = PlotBuilder.config({
@@ -158,22 +159,23 @@ describe("buildSettingsTree", () => {
     );
   });
 
-  it.each([undefined, "linear", "step"] as const)(
-    "exposes the saved interpolation %s with a backward-compatible linear default",
-    (lineInterpolation) => {
-      const path = { ...PlotBuilder.path(), lineInterpolation };
-      const tree = buildSettingsTree(PlotBuilder.config({ paths: [path] }), t);
-      expect(tree.paths?.children?.["0"]?.fields?.lineInterpolation).toEqual({
-        input: "select",
-        label: "lineInterpolation",
-        value: lineInterpolation ?? "linear",
-        options: [
-          { label: "linear", value: "linear" },
-          { label: "step", value: "step" },
-        ],
-      });
-    },
-  );
+  it.each([
+    undefined,
+    "linear",
+    "step",
+  ] as const)("exposes the saved interpolation %s with a backward-compatible linear default", (lineInterpolation) => {
+    const path = { ...PlotBuilder.path(), lineInterpolation };
+    const tree = buildSettingsTree(PlotBuilder.config({ paths: [path] }), t);
+    expect(tree.paths?.children?.["0"]?.fields?.lineInterpolation).toEqual({
+      input: "select",
+      label: "lineInterpolation",
+      value: lineInterpolation ?? "linear",
+      options: [
+        { label: "linear", value: "linear" },
+        { label: "step", value: "step" },
+      ],
+    });
+  });
 
   it("should add a default plot path in the node when no paths", () => {
     const config: PlotConfig = PlotBuilder.config({ paths: [] });

@@ -98,24 +98,25 @@ describe("PlotLegend", () => {
     jest.clearAllMocks();
   });
 
-  it.each(["left", "top", "floating"])(
-    "highlights only the enabled original series with values hidden (%s)",
-    (legendDisplay) => {
-      const paths = [
-        { value: "/first", enabled: true, timestampMethod: "receiveTime" },
-        { value: "/second", enabled: true, timestampMethod: "receiveTime" },
-        { value: "/disabled", enabled: false, timestampMethod: "receiveTime" },
-      ];
-      const { container, unmount } = setup({ paths, legendDisplay, highlightedSeriesIndex: 1 });
-      const highlighted = container.querySelectorAll("[data-highlighted=true]");
-      expect(highlighted).toHaveLength(1);
-      expect(highlighted[0]).toHaveTextContent("/second");
-      expect(highlighted[0]).not.toHaveTextContent("/first");
-      unmount();
-      const disabled = setup({ paths, legendDisplay, highlightedSeriesIndex: 2 });
-      expect(disabled.container.querySelector("[data-highlighted=true]")).toBeNull();
-    },
-  );
+  it.each([
+    "left",
+    "top",
+    "floating",
+  ])("highlights only the enabled original series with values hidden (%s)", (legendDisplay) => {
+    const paths = [
+      { value: "/first", enabled: true, timestampMethod: "receiveTime" },
+      { value: "/second", enabled: true, timestampMethod: "receiveTime" },
+      { value: "/disabled", enabled: false, timestampMethod: "receiveTime" },
+    ];
+    const { container, unmount } = setup({ paths, legendDisplay, highlightedSeriesIndex: 1 });
+    const highlighted = container.querySelectorAll("[data-highlighted=true]");
+    expect(highlighted).toHaveLength(1);
+    expect(highlighted[0]).toHaveTextContent("/second");
+    expect(highlighted[0]).not.toHaveTextContent("/first");
+    unmount();
+    const disabled = setup({ paths, legendDisplay, highlightedSeriesIndex: 2 });
+    expect(disabled.container.querySelector("[data-highlighted=true]")).toBeNull();
+  });
 
   it("renders PlotLegend without crashing", () => {
     setup();
@@ -171,43 +172,44 @@ describe("PlotLegend", () => {
     color: "purple",
   }));
 
-  it.each(["left", "top", "floating"])(
-    "highlights the exact generated array child, not its parent or source index (%s)",
-    (legendDisplay) => {
-      const paths = [
-        { value: "/disabled", enabled: false, timestampMethod: "receiveTime" },
-        ...arrayPaths,
-        { value: "1500", enabled: true, timestampMethod: "receiveTime" },
-      ];
-      const children = arraySeries.map((item, index) => ({
-        ...item,
-        configIndex: 1,
-        datasetIndex: paths.length + index,
-      }));
-      const selected = children[1]!;
-      const { container, unmount } = setup({
-        paths,
-        arraySeries: children,
-        legendDisplay,
-        highlightedSeriesIndex: selected.datasetIndex,
-        showValues: false,
-      });
-      const highlighted = container.querySelectorAll("[data-highlighted=true]");
-      expect(highlighted).toHaveLength(1);
-      expect(highlighted[0]).toHaveTextContent(`Joints [${selected.arrayIndex}]`);
-      expect(highlighted[0]).not.toHaveTextContent("Scalar");
-      unmount();
-      const disabled = setup({
-        paths: paths.map((seriesPath, index) =>
-          index === selected.configIndex ? { ...seriesPath, enabled: false } : seriesPath,
-        ),
-        arraySeries: children,
-        legendDisplay,
-        highlightedSeriesIndex: selected.datasetIndex,
-      });
-      expect(disabled.container.querySelector("[data-highlighted=true]")).toBeNull();
-    },
-  );
+  it.each([
+    "left",
+    "top",
+    "floating",
+  ])("highlights the exact generated array child, not its parent or source index (%s)", (legendDisplay) => {
+    const paths = [
+      { value: "/disabled", enabled: false, timestampMethod: "receiveTime" },
+      ...arrayPaths,
+      { value: "1500", enabled: true, timestampMethod: "receiveTime" },
+    ];
+    const children = arraySeries.map((item, index) => ({
+      ...item,
+      configIndex: 1,
+      datasetIndex: paths.length + index,
+    }));
+    const selected = children[1]!;
+    const { container, unmount } = setup({
+      paths,
+      arraySeries: children,
+      legendDisplay,
+      highlightedSeriesIndex: selected.datasetIndex,
+      showValues: false,
+    });
+    const highlighted = container.querySelectorAll("[data-highlighted=true]");
+    expect(highlighted).toHaveLength(1);
+    expect(highlighted[0]).toHaveTextContent(`Joints [${selected.arrayIndex}]`);
+    expect(highlighted[0]).not.toHaveTextContent("Scalar");
+    unmount();
+    const disabled = setup({
+      paths: paths.map((seriesPath, index) =>
+        index === selected.configIndex ? { ...seriesPath, enabled: false } : seriesPath,
+      ),
+      arraySeries: children,
+      legendDisplay,
+      highlightedSeriesIndex: selected.datasetIndex,
+    });
+    expect(disabled.container.querySelector("[data-highlighted=true]")).toBeNull();
+  });
 
   it("edits, hides and deletes the original array configuration from either child", async () => {
     const saveConfig = jest.fn();

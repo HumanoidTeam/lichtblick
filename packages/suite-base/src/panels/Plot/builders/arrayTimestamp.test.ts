@@ -295,17 +295,18 @@ it("preserves gaps under downsampling and exports only actual finite observation
   expect(csv.data.every((item) => Number.isFinite(item.x) && Number.isFinite(item.y))).toBe(true);
 });
 
-it.each(["/sample.values[:].field", "/sample.values[-2:-1]", "/sample.values[:].nested[:]"])(
-  "visibly rejects unsupported source identity %s",
-  async (path) => {
-    const builder = new TimestampDatasetsBuilder();
-    builder.setSeries([series(path)]);
-    builder.handleMessageRange([message(0, [0, 0, 2, 3])], { isReset: true }, startTime);
-    const result = await builder.getViewportDatasets(viewport);
-    expect(result.arrayDatasets).toEqual([]);
-    expect(result.pathsWithInvalidArrays).toEqual(new Set([path]));
-  },
-);
+it.each([
+  "/sample.values[:].field",
+  "/sample.values[-2:-1]",
+  "/sample.values[:].nested[:]",
+])("visibly rejects unsupported source identity %s", async (path) => {
+  const builder = new TimestampDatasetsBuilder();
+  builder.setSeries([series(path)]);
+  builder.handleMessageRange([message(0, [0, 0, 2, 3])], { isReset: true }, startTime);
+  const result = await builder.getViewportDatasets(viewport);
+  expect(result.arrayDatasets).toEqual([]);
+  expect(result.pathsWithInvalidArrays).toEqual(new Set([path]));
+});
 
 it("uses fractional header time, bigint values and math modifiers independently in scatter mode", async () => {
   const builder = new TimestampDatasetsBuilder();
@@ -347,119 +348,109 @@ it("reports nonnumeric arrays rather than assigning object identities", async ()
   expect(result.pathsWithInvalidArrays).toEqual(new Set([config.messagePath]));
 });
 
-it.each(["receiveTime", "headerStamp"] as const)(
-  "combines indexed arrays, Step and right-axis routing without changing %s CSV or gaps",
-  async (timestampMethod) => {
-    const builder = new TimestampDatasetsBuilder();
-    const config = series("/sample.values[2:3]", {
-      configIndex: 1,
-      timestampMethod,
-      lineInterpolation: "step",
-      yAxisID: "yRight",
-    });
-    const scalar = series("/sample.scalar", { configIndex: 2, expandArrays: false });
-    const events = [
-      message(0, [0, 0, 1100, 2100], 10),
-      message(1, [0, 0, 1400, 2400], 11),
-      message(1, [0, 0, 1450, 2450], 11),
-      message(2, [], 12),
-      message(3, [0, 0, 1300, 2300], 13),
-      message(4, [0, 0, 1900, 2900], 14),
-    ];
-    const originalEvents = structuredClone(events);
-    builder.setSeries([config, scalar]);
-    builder.handleMessageRange(events, { isReset: true }, startTime);
-    const initial = await builder.getViewportDatasets(viewport);
-    const csv = structuredClone(await builder.getCsvData());
-    expect(initial.arrayDatasets?.map((item) => [item.configIndex, item.arrayIndex])).toEqual([
-      [1, 2],
-      [1, 3],
-    ]);
-    expect(initial.arrayDatasets?.map(({ dataset }) => [dataset.stepped, dataset.yAxisID])).toEqual(
-      [
-        ["before", "yRight"],
-        ["before", "yRight"],
-      ],
-    );
-    expect(
-      initial.arrayDatasets?.map(({ dataset }) =>
-        dataset.data.some((item) => Number.isNaN(item.x)),
-      ),
-    ).toEqual([true, true]);
-    expect(initial.datasetsByConfigIndex[2]?.yAxisID).toBeUndefined();
-    expect(csv.slice(1).map((item) => item.data.length)).toEqual([5, 5]);
-    expect(csv[1]!.data.map((item) => item.receiveTime.sec)).toEqual([100, 101, 101, 103, 104]);
-    expect(csv[1]!.data.map((item) => item.headerStamp?.sec)).toEqual([110, 111, 111, 113, 114]);
-    builder.setSeries([{ ...config, lineInterpolation: undefined, yAxisID: undefined }, scalar]);
-    const restored = await builder.getViewportDatasets(viewport);
-    expect(
-      restored.arrayDatasets?.map(({ dataset }) => [dataset.stepped, dataset.yAxisID]),
-    ).toEqual([
-      [undefined, undefined],
-      [undefined, undefined],
-    ]);
-    expect(restored.arrayDatasets?.map(({ dataset }) => dataset.data)).toEqual(
-      initial.arrayDatasets?.map(({ dataset }) => dataset.data),
-    );
-    expect(await builder.getCsvData()).toEqual(csv);
-    expect(events).toEqual(originalEvents);
-  },
-);
+it.each([
+  "receiveTime",
+  "headerStamp",
+] as const)("combines indexed arrays, Step and right-axis routing without changing %s CSV or gaps", async (timestampMethod) => {
+  const builder = new TimestampDatasetsBuilder();
+  const config = series("/sample.values[2:3]", {
+    configIndex: 1,
+    timestampMethod,
+    lineInterpolation: "step",
+    yAxisID: "yRight",
+  });
+  const scalar = series("/sample.scalar", { configIndex: 2, expandArrays: false });
+  const events = [
+    message(0, [0, 0, 1100, 2100], 10),
+    message(1, [0, 0, 1400, 2400], 11),
+    message(1, [0, 0, 1450, 2450], 11),
+    message(2, [], 12),
+    message(3, [0, 0, 1300, 2300], 13),
+    message(4, [0, 0, 1900, 2900], 14),
+  ];
+  const originalEvents = structuredClone(events);
+  builder.setSeries([config, scalar]);
+  builder.handleMessageRange(events, { isReset: true }, startTime);
+  const initial = await builder.getViewportDatasets(viewport);
+  const csv = structuredClone(await builder.getCsvData());
+  expect(initial.arrayDatasets?.map((item) => [item.configIndex, item.arrayIndex])).toEqual([
+    [1, 2],
+    [1, 3],
+  ]);
+  expect(initial.arrayDatasets?.map(({ dataset }) => [dataset.stepped, dataset.yAxisID])).toEqual([
+    ["before", "yRight"],
+    ["before", "yRight"],
+  ]);
+  expect(
+    initial.arrayDatasets?.map(({ dataset }) => dataset.data.some((item) => Number.isNaN(item.x))),
+  ).toEqual([true, true]);
+  expect(initial.datasetsByConfigIndex[2]?.yAxisID).toBeUndefined();
+  expect(csv.slice(1).map((item) => item.data.length)).toEqual([5, 5]);
+  expect(csv[1]!.data.map((item) => item.receiveTime.sec)).toEqual([100, 101, 101, 103, 104]);
+  expect(csv[1]!.data.map((item) => item.headerStamp?.sec)).toEqual([110, 111, 111, 113, 114]);
+  builder.setSeries([{ ...config, lineInterpolation: undefined, yAxisID: undefined }, scalar]);
+  const restored = await builder.getViewportDatasets(viewport);
+  expect(restored.arrayDatasets?.map(({ dataset }) => [dataset.stepped, dataset.yAxisID])).toEqual([
+    [undefined, undefined],
+    [undefined, undefined],
+  ]);
+  expect(restored.arrayDatasets?.map(({ dataset }) => dataset.data)).toEqual(
+    initial.arrayDatasets?.map(({ dataset }) => dataset.data),
+  );
+  expect(await builder.getCsvData()).toEqual(csv);
+  expect(events).toEqual(originalEvents);
+});
 
-it.each(["receiveTime", "headerStamp"] as const)(
-  "keeps Step/right-axis array derivatives separate across %s preload/current gaps",
-  async (timestampMethod) => {
-    const builder = new TimestampDatasetsBuilder();
-    const config = series("/sample.values[2:2].@derivative", {
-      timestampMethod,
-      lineInterpolation: "step",
-      yAxisID: "yRight",
-    });
-    builder.setSeries([config]);
-    builder.handlePlayerState(
-      PlayerBuilder.playerState({
-        activeData: PlayerBuilder.activeData({
-          startTime,
-          endTime: { sec: 117, nsec: 0 },
-          messages: [message(6, [0, 0, 2000], 16), message(7, [0, 0, 2300], 17)],
-        }),
+it.each([
+  "receiveTime",
+  "headerStamp",
+] as const)("keeps Step/right-axis array derivatives separate across %s preload/current gaps", async (timestampMethod) => {
+  const builder = new TimestampDatasetsBuilder();
+  const config = series("/sample.values[2:2].@derivative", {
+    timestampMethod,
+    lineInterpolation: "step",
+    yAxisID: "yRight",
+  });
+  builder.setSeries([config]);
+  builder.handlePlayerState(
+    PlayerBuilder.playerState({
+      activeData: PlayerBuilder.activeData({
+        startTime,
+        endTime: { sec: 117, nsec: 0 },
+        messages: [message(6, [0, 0, 2000], 16), message(7, [0, 0, 2300], 17)],
       }),
-    );
-    builder.handleMessageRange(
-      [
-        message(0, [0, 0, 1100], 10),
-        message(1, [0, 0, 1400], 11),
-        message(2, [0, 0, 1800], 12),
-        message(3, [], 13),
-        message(4, [0, 0, 1300], 14),
-        message(5, [0, 0, 1900], 15),
-      ],
-      { isReset: true },
-      startTime,
-    );
-    const result = await builder.getViewportDatasets(viewport);
-    const offset = timestampMethod === "receiveTime" ? 0 : 10;
-    expect(points(result.arrayDatasets![0]!.dataset.data)).toEqual([
-      [offset + 1, 300],
-      [offset + 2, 400],
-      [offset + 5, 600],
-      [offset + 7, 300],
-    ]);
-    expect(result.arrayDatasets![0]!.dataset).toMatchObject({
-      stepped: "before",
-      yAxisID: "yRight",
-    });
-    const csv = structuredClone(await builder.getCsvData());
-    expect(csv[0]!.data.map(({ y }) => y)).toEqual([1100, 1400, 1800, 1300, 1900, 2000, 2300]);
-    expect(result.arrayDatasets![0]!.dataset.data.filter(({ x }) => Number.isNaN(x))).toHaveLength(
-      2,
-    );
-    expect((await builder.getViewportDatasets(viewport)).arrayDatasets).toEqual(
-      result.arrayDatasets,
-    );
-    expect(await builder.getCsvData()).toEqual(csv);
-  },
-);
+    }),
+  );
+  builder.handleMessageRange(
+    [
+      message(0, [0, 0, 1100], 10),
+      message(1, [0, 0, 1400], 11),
+      message(2, [0, 0, 1800], 12),
+      message(3, [], 13),
+      message(4, [0, 0, 1300], 14),
+      message(5, [0, 0, 1900], 15),
+    ],
+    { isReset: true },
+    startTime,
+  );
+  const result = await builder.getViewportDatasets(viewport);
+  const offset = timestampMethod === "receiveTime" ? 0 : 10;
+  expect(points(result.arrayDatasets![0]!.dataset.data)).toEqual([
+    [offset + 1, 300],
+    [offset + 2, 400],
+    [offset + 5, 600],
+    [offset + 7, 300],
+  ]);
+  expect(result.arrayDatasets![0]!.dataset).toMatchObject({
+    stepped: "before",
+    yAxisID: "yRight",
+  });
+  const csv = structuredClone(await builder.getCsvData());
+  expect(csv[0]!.data.map(({ y }) => y)).toEqual([1100, 1400, 1800, 1300, 1900, 2000, 2300]);
+  expect(result.arrayDatasets![0]!.dataset.data.filter(({ x }) => Number.isNaN(x))).toHaveLength(2);
+  expect((await builder.getViewportDatasets(viewport)).arrayDatasets).toEqual(result.arrayDatasets);
+  expect(await builder.getCsvData()).toEqual(csv);
+});
 
 it("samples right-axis array children in their own pixel domain", async () => {
   const builder = new TimestampDatasetsBuilder();

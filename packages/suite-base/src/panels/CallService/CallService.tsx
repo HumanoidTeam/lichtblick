@@ -184,7 +184,10 @@ function CallServiceContent(
 
     try {
       setState({ status: "requesting", value: `Calling ${config.serviceName}...` });
-      const serviceCall = context.callService(config.serviceName!, JSON.parse(config.requestPayload!));
+      const serviceCall = context.callService(
+        config.serviceName!,
+        JSON.parse(config.requestPayload!),
+      );
       const response =
         config.timeoutSeconds != undefined && config.timeoutSeconds > 0
           ? await promiseTimeout(serviceCall, config.timeoutSeconds * 1000)
