@@ -66,6 +66,7 @@ const mockRenderer = {
   canResetView: jest.fn(() => false),
   getContextMenuItems: jest.fn(() => []),
   fixedFrameId: undefined,
+  overlays: new Map(),
 };
 
 jest.mock("./RendererContext", () => {
