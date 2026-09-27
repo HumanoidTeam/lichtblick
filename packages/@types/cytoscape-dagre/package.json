@@ -1,4 +1,7 @@
 {
   "name": "@types/cytoscape-dagre",
-  "types": "index.d.ts"
+  "types": "index.d.ts",
+  "dependencies": {
+    "@types/cytoscape": "3.21.9"
+  }
 }

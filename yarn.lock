@@ -5913,10 +5913,12 @@ __metadata:
 "@types/cytoscape-dagre@workspace:*, @types/cytoscape-dagre@workspace:packages/@types/cytoscape-dagre":
   version: 0.0.0-use.local
   resolution: "@types/cytoscape-dagre@workspace:packages/@types/cytoscape-dagre"
+  dependencies:
+    "@types/cytoscape": "npm:3.21.9"
   languageName: unknown
   linkType: soft
 
-"@types/cytoscape@npm:^3.21.9":
+"@types/cytoscape@npm:3.21.9, @types/cytoscape@npm:^3.21.9":
   version: 3.21.9
   resolution: "@types/cytoscape@npm:3.21.9"
   checksum: 10/09b24a92014e35816b0ce3842b5ae4032af7907bff38e44573905e4fca6774ecd57167f29360b2b7c269dd1ba910b931002b5ecd94fd0b8485cd8757e1bd3bb6
