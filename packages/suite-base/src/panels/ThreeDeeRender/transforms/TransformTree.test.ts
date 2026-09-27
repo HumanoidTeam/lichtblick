@@ -9,6 +9,7 @@ import { ObjectPool } from "@lichtblick/den/collection";
 import { Transform } from "@lichtblick/suite-base/panels/ThreeDeeRender/transforms/Transform";
 
 import { AddTransformResult, TransformTree } from "./TransformTree";
+import { makePose } from "./geometry";
 
 const tf = Transform.Identity();
 describe("TransformTree", () => {
@@ -79,5 +80,58 @@ describe("TransformTree", () => {
     expect(tfTree.frame("b")).toBeUndefined();
     expect(tfTree.frame("c")).toBeUndefined();
     expect(tfTree.frame("d")).toBeUndefined();
+  });
+
+  describe("apply with the per-frame hop cache", () => {
+    const TIME = 1n;
+    const ROOT_TO_MID_X = 1;
+    const MID_TO_LEAF_X = 2;
+    const NEW_MID_TO_LEAF_X = 5;
+
+    function leafOriginInRoot(tree: TransformTree): number | undefined {
+      const out = makePose();
+      const applied = tree.apply(out, makePose(), "root", "root", "leaf", TIME, TIME);
+      return applied?.position.x;
+    }
+
+    it("returns the same result for repeated lookups at the same time", () => {
+      const tree = new TransformTree(new ObjectPool(Transform.Empty));
+      tree.addTransform("mid", "root", TIME, new Transform([ROOT_TO_MID_X, 0, 0], [0, 0, 0, 1]));
+      tree.addTransform("leaf", "mid", TIME, new Transform([MID_TO_LEAF_X, 0, 0], [0, 0, 0, 1]));
+
+      expect(leafOriginInRoot(tree)).toBeCloseTo(ROOT_TO_MID_X + MID_TO_LEAF_X);
+      expect(leafOriginInRoot(tree)).toBeCloseTo(ROOT_TO_MID_X + MID_TO_LEAF_X);
+    });
+
+    it("recomputes a hop after its transform history changes at the same time", () => {
+      const tree = new TransformTree(new ObjectPool(Transform.Empty));
+      tree.addTransform("mid", "root", TIME, new Transform([ROOT_TO_MID_X, 0, 0], [0, 0, 0, 1]));
+      tree.addTransform("leaf", "mid", TIME, new Transform([MID_TO_LEAF_X, 0, 0], [0, 0, 0, 1]));
+      expect(leafOriginInRoot(tree)).toBeCloseTo(ROOT_TO_MID_X + MID_TO_LEAF_X);
+
+      // Replace the transform at the same timestamp: the cached hop must not be reused
+      tree.addTransform(
+        "leaf",
+        "mid",
+        TIME,
+        new Transform([NEW_MID_TO_LEAF_X, 0, 0], [0, 0, 0, 1]),
+      );
+
+      expect(leafOriginInRoot(tree)).toBeCloseTo(ROOT_TO_MID_X + NEW_MID_TO_LEAF_X);
+    });
+
+    it("does not cache hops of frames with a user offset", () => {
+      const tree = new TransformTree(new ObjectPool(Transform.Empty));
+      tree.addTransform("mid", "root", TIME, new Transform([ROOT_TO_MID_X, 0, 0], [0, 0, 0, 1]));
+      tree.addTransform("leaf", "mid", TIME, new Transform([MID_TO_LEAF_X, 0, 0], [0, 0, 0, 1]));
+      const offset: [number, number, number] = [0, 0, 0];
+      tree.frame("leaf")!.offsetPosition = offset;
+      expect(leafOriginInRoot(tree)).toBeCloseTo(ROOT_TO_MID_X + MID_TO_LEAF_X);
+
+      // Offsets are mutable vectors; a change in place must be visible on the next lookup
+      offset[0] = NEW_MID_TO_LEAF_X;
+
+      expect(leafOriginInRoot(tree)).toBeCloseTo(ROOT_TO_MID_X + MID_TO_LEAF_X + NEW_MID_TO_LEAF_X);
+    });
   });
 });

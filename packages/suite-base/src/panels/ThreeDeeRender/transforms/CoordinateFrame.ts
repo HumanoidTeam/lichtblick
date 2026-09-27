@@ -56,6 +56,18 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
   #parent?: CoordinateFrame;
   #transforms: ArrayMap<Time, Transform>;
 
+  /**
+   * Cache of the last computed `parent_T_this` matrix. A render frame transforms many renderables
+   * through the same frames at the same time, so each hop is computed once per (time, maxDelta)
+   * until the transform history changes. Not used when offsets are set, since those are mutable.
+   */
+  #historyVersion = 0;
+  #hopVersion = -1;
+  #hopTime: Time = 0n;
+  #hopMaxDelta: Duration = 0n;
+  #hopValid = false;
+  readonly #hopMatrix = mat4Identity();
+
   public constructor(
     id: ID,
     parent: CoordinateFrame | undefined, // fallback frame not allowed as parent
@@ -128,6 +140,7 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
       }
     }
     this.#parent = parent;
+    this.#historyVersion++;
   }
 
   /**
@@ -156,6 +169,7 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
    * If a transform with an identical timestamp already exists, it is replaced.
    */
   public addTransform(time: Time, transform: Transform): void {
+    this.#historyVersion++;
     const oldTf = this.#transforms.set(time, transform);
     if (oldTf) {
       this.#transformPool.release(oldTf);
@@ -186,6 +200,7 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
 
   /** Remove all transforms with timestamps greater than the given timestamp. */
   public removeTransformsAfter(time: Time): void {
+    this.#historyVersion++;
     const removed = this.#transforms.removeAfter(time);
     for (const [, tf] of removed) {
       this.#transformPool.release(tf);
@@ -194,6 +209,7 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
 
   /** Removes a transform with a specific timestamp */
   public removeTransformAt(time: Time): void {
+    this.#historyVersion++;
     const tf = this.#transforms.remove(time);
     if (tf?.[1]) {
       this.#transformPool.release(tf[1]);
@@ -476,7 +492,34 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
 
     let curFrame = childFrame;
     while (curFrame !== parentFrame) {
-      if (!curFrame.findClosestTransforms(tempLower, tempUpper, time, maxDelta)) {
+      const cacheable =
+        curFrame.offsetEulerDegrees == undefined && curFrame.offsetPosition == undefined;
+      if (
+        cacheable &&
+        curFrame.#hopVersion === curFrame.#historyVersion &&
+        curFrame.#hopTime === time &&
+        curFrame.#hopMaxDelta === maxDelta
+      ) {
+        if (!curFrame.#hopValid) {
+          return false;
+        }
+        mat4.multiply(out, curFrame.#hopMatrix, out);
+        if (curFrame.#parent == undefined) {
+          throw new Error(
+            `Frame "${parentFrame.displayName()}" is not a parent of "${childFrame.displayName()}"`,
+          );
+        }
+        curFrame = curFrame.#parent;
+        continue;
+      }
+      const found = curFrame.findClosestTransforms(tempLower, tempUpper, time, maxDelta);
+      if (cacheable) {
+        curFrame.#hopVersion = curFrame.#historyVersion;
+        curFrame.#hopTime = time;
+        curFrame.#hopMaxDelta = maxDelta;
+        curFrame.#hopValid = found;
+      }
+      if (!found) {
         return false;
       }
       CoordinateFrame.InterpolateTransform(tempTransform, tempLower, tempUpper, time);
@@ -494,6 +537,9 @@ export class CoordinateFrame<ID extends AnyFrameId = UserFrameId> {
         tempTransform.setPosition(p);
       }
 
+      if (cacheable) {
+        mat4.copy(curFrame.#hopMatrix, tempTransform.matrix());
+      }
       mat4.multiply(out, tempTransform.matrix(), out);
 
       if (curFrame.#parent == undefined) {
