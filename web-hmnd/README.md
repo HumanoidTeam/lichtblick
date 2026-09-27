@@ -29,9 +29,20 @@ Beyond the parameters suite-base itself understands (`ds`, `ds.*`, `layoutUrl`,
 
 ## Downstream entrypoint with extra panels
 
-`src/index.ts` exports `main(params?: { extraPanels?: PanelInfo[] }): Promise<void>`.
-`src/entrypoint.tsx` calls `main()` with no panels. `extraPanels` are added to
-the built-in panel catalog through the `extraPanels` prop of `WebRoot`.
+`src/index.ts` exports:
+
+```ts
+main(params?: {
+  extraPanels?: PanelInfo[];
+  extraSceneExtensions?: SceneExtensionConfig["extensionsById"];
+}): Promise<void>
+```
+
+`src/entrypoint.tsx` calls `main()` with no parameters. `extraPanels` are added
+to the built-in panel catalog (`WebRoot` prop `extraPanels`). `extraSceneExtensions`
+are added to the scene extensions of the 3D and Image panels (`WebRoot` prop
+`extraSceneExtensions`). A scene extension can use `renderer.rosApi`,
+`renderer.setOverlay(id, element)` and `renderer.config.extensionSettings[id]`.
 
 A downstream build uses its own entry file and its own webpack config:
 
@@ -43,6 +54,12 @@ void main({
   extraPanels: [
     { title: "My panel", type: "MyPanel", module: async () => await import("./MyPanel") },
   ],
+  extraSceneExtensions: {
+    "my.SceneExtension": {
+      init: (renderer) => new MySceneExtension(renderer),
+      supportedInterfaceModes: ["3d"],
+    },
+  },
 });
 ```
 

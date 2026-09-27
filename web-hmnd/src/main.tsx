@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import type { PanelInfo } from "@lichtblick/suite-base";
+import type { SceneExtensionConfig } from "@lichtblick/suite-base/panels/ThreeDeeRender/SceneExtensionConfig";
 import { main as suiteWebMain } from "@lichtblick/suite-web";
 
 import { resolveChromeParams } from "./chromeParams";
@@ -13,6 +14,8 @@ import { resolveChromeParams } from "./chromeParams";
 export type HmndMainParams = {
   /** Panels added to the built-in panel catalog. */
   extraPanels?: PanelInfo[];
+  /** Scene extensions added to the 3D and Image panels, keyed by extension ID. */
+  extraSceneExtensions?: SceneExtensionConfig["extensionsById"];
 };
 
 /**
@@ -69,6 +72,7 @@ export async function main(params: HmndMainParams = {}): Promise<void> {
           ]}
           extensionLoaders={(defaultLoaders) => [...defaultLoaders, new BundledExtensionLoader()]}
           extraPanels={params.extraPanels}
+          extraSceneExtensions={params.extraSceneExtensions}
           // Defaults rather than stored values, so a URL parameter decides what the app sees without
           // writing anything an operator would then be stuck with.
           appConfigurationDefaults={{

@@ -32,14 +32,16 @@ It is not an official Lichtblick release.
 - `web-hmnd/`: a web entrypoint for HMND tools. It limits the data sources, hides the app bar
   unless a URL parameter enables it, loads extensions that are served next to the bundle, and
   sets toolbar mode and layout lock from URL parameters.
-- `web-hmnd/src/index.ts` exports `main({ extraPanels })`. `web-hmnd/webpack.config.ts` exports
+- `web-hmnd/src/index.ts` exports `main({ extraPanels, extraSceneExtensions })`. `web-hmnd/webpack.config.ts` exports
   `makeWebHmndConfig({ contextPath, entrypoint, outputPath })`. A downstream build can use its
   own entry file and add panels. Refer to `web-hmnd/README.md`.
-- `WebRoot` props: `extensionLoaders` (replace or extend the extension loaders) and `extraPanels`
-  (add panels to the built-in panel catalog).
+- `WebRoot` props: `extensionLoaders` (replace or extend the extension loaders), `extraPanels`
+  (add panels to the built-in panel catalog) and `extraSceneExtensions` (add scene extensions to
+  the 3D and Image panels).
 - Operator chrome settings: panel toolbar mode and layout lock.
-- 3D panel: ROS interactive markers (transport, renderables, drag input, context menu). The saved
-  interactive marker settings are restored.
+- 3D panel APIs for scene extensions: a ROS API on the renderer (`setRosApi`: advertise, publish,
+  call service), overlay elements above the canvas (`setOverlay`), saved per-extension settings
+  (`extensionSettings` in the panel config), and the `InteractiveMarkerFeedback` publish datatype.
 - Foxglove WebSocket player: one alert for all deprecated service schemas.
 - Deep links: `startTime` and `endTime` URL parameters limit the playback range.
   `mcap-bundle` links keep the range and do not write short-lived URLs to the recent sources.

@@ -15,6 +15,7 @@ import { INativeAppMenu } from "@lichtblick/suite-base/context/NativeAppMenuCont
 import { INativeWindow } from "@lichtblick/suite-base/context/NativeWindowContext";
 import { PanelInfo } from "@lichtblick/suite-base/context/PanelCatalogContext";
 import { IDataSourceFactory } from "@lichtblick/suite-base/context/PlayerSelectionContext";
+import type { SceneExtensionConfig } from "@lichtblick/suite-base/panels/ThreeDeeRender/SceneExtensionConfig";
 import { IExtensionLoader } from "@lichtblick/suite-base/services/extension/IExtensionLoader";
 
 interface ISharedRootContext {
@@ -31,6 +32,8 @@ interface ISharedRootContext {
   extraProviders?: readonly React.JSX.Element[];
   /** Panels added to the built-in panel catalog. */
   extraPanels?: readonly PanelInfo[];
+  /** Scene extensions added to the built-in 3D and Image panel extensions, keyed by extension ID. */
+  extraSceneExtensions?: SceneExtensionConfig["extensionsById"];
   customWindowControlProps?: CustomWindowControlsProps;
   onAppBarDoubleClick?: () => void;
   AppBarComponent?: (props: AppBarProps) => React.JSX.Element;

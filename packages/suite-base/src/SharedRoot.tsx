@@ -36,6 +36,7 @@ export function SharedRoot(
     enableLaunchPreferenceScreen,
     extensionLoaders,
     extraPanels,
+    extraSceneExtensions,
     extraProviders,
   } = props;
 
@@ -51,6 +52,7 @@ export function SharedRoot(
       enableLaunchPreferenceScreen,
       extensionLoaders,
       extraPanels,
+      extraSceneExtensions,
       extraProviders,
       onAppBarDoubleClick,
     }),
@@ -65,6 +67,7 @@ export function SharedRoot(
       enableLaunchPreferenceScreen,
       extensionLoaders,
       extraPanels,
+      extraSceneExtensions,
       extraProviders,
       onAppBarDoubleClick,
     ],

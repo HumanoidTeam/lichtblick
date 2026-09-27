@@ -23,6 +23,7 @@ import {
 } from "@lichtblick/suite-base/components/PanelExtensionAdapter";
 import { INJECTED_FEATURE_KEYS, useAppContext } from "@lichtblick/suite-base/context/AppContext";
 import { useExtensionCatalog } from "@lichtblick/suite-base/context/ExtensionCatalogContext";
+import { useSharedRootContext } from "@lichtblick/suite-base/context/SharedRootContext";
 import { createSyncRoot } from "@lichtblick/suite-base/panels/createSyncRoot";
 import { SaveConfig } from "@lichtblick/suite-base/types/panels";
 
@@ -76,15 +77,19 @@ function ThreeDeeRenderAdapter(interfaceMode: InterfaceMode, props: Props) {
 
   const forwardedAnalytics = useForwardAnalytics();
   const { injectedFeatures } = useAppContext();
+  const { extraSceneExtensions } = useSharedRootContext();
   const customSceneExtensions = useMemo(() => {
-    if (injectedFeatures == undefined) {
-      return undefined;
-    }
     const injectedSceneExtensions =
-      injectedFeatures.availableFeatures[INJECTED_FEATURE_KEYS.customSceneExtensions]
+      injectedFeatures?.availableFeatures[INJECTED_FEATURE_KEYS.customSceneExtensions]
         ?.customSceneExtensions;
-    return injectedSceneExtensions;
-  }, [injectedFeatures]);
+    if (extraSceneExtensions == undefined) {
+      return injectedSceneExtensions;
+    }
+    return {
+      ...injectedSceneExtensions,
+      extensionsById: { ...extraSceneExtensions, ...injectedSceneExtensions?.extensionsById },
+    };
+  }, [injectedFeatures, extraSceneExtensions]);
 
   const boundInitPanel = useMemo(
     () =>

@@ -28,6 +28,7 @@ import {
 } from "@lichtblick/suite-base";
 import { APP_CONFIG } from "@lichtblick/suite-base/constants/config";
 import { AppParametersInput } from "@lichtblick/suite-base/context/AppParametersContext";
+import type { SceneExtensionConfig } from "@lichtblick/suite-base/panels/ThreeDeeRender/SceneExtensionConfig";
 
 import LocalStorageAppConfiguration from "./services/LocalStorageAppConfiguration";
 
@@ -37,6 +38,8 @@ export function WebRoot(props: {
   extraProviders: React.JSX.Element[] | undefined;
   /** Panels added to the built-in panel catalog. */
   extraPanels?: PanelInfo[];
+  /** Scene extensions added to the built-in 3D and Image panel extensions, keyed by extension ID. */
+  extraSceneExtensions?: SceneExtensionConfig["extensionsById"];
   dataSources: IDataSourceFactory[] | undefined;
   /**
    * Replaces the built-in extension loaders, or — when given a function — receives them so an
@@ -115,6 +118,7 @@ export function WebRoot(props: {
       enableGlobalCss
       extraProviders={props.extraProviders}
       extraPanels={props.extraPanels}
+      extraSceneExtensions={props.extraSceneExtensions}
       AppBarComponent={props.AppBarComponent}
     >
       {props.children}
