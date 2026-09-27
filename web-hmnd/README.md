@@ -25,7 +25,15 @@ it is mounted at.
 ## URL parameters
 
 Beyond the parameters suite-base itself understands (`ds`, `ds.*`, `layoutUrl`,
-`layout`, …), this entrypoint adds `hmnd-appbar=1` to un-hide the app bar.
+`layout`, …), this entrypoint adds:
+
+- `hmnd-appbar=1`: show the app bar (and, by default, full panel toolbars).
+- `hmnd-toolbars=full|compact|hidden`: panel toolbar mode.
+- `hmnd-sidebars=1`: show the sidebars instead of starting them collapsed.
+- `hmnd-lock=1`: lock the layout (no drag, split, resize, add or remove of
+  panels). Without it the layout is unlocked, as in stock Lichtblick.
+
+Only the exact value `1` enables a flag.
 
 ## Downstream entrypoint with extra panels
 

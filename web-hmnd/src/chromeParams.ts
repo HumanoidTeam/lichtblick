@@ -8,11 +8,10 @@
 /**
  * URL parameters that control the operator chrome.
  *
- * The deployment defaults are the frozen-operator ones — no app bar, no panel toolbars, locked
- * layout, collapsed sidebars — and every parameter here exists to *undo* one of them for layout
- * authoring. That direction matters: a frozen layout served without any parameters is the safe
- * configuration, so a dropped or mistyped parameter degrades towards locked rather than towards an
- * operator being able to rearrange a console mid-shift.
+ * The deployment defaults are the operator ones — no app bar, no panel toolbars, collapsed
+ * sidebars — and `hmnd-appbar`, `hmnd-toolbars` and `hmnd-sidebars` exist to *undo* one of them for
+ * layout authoring. The layout lock is opt-in: the layout is unlocked (stock behavior) unless the
+ * URL carries `hmnd-lock=1`.
  *
  * The embedding iframe (Phase 4) builds these into its `src`; they are read once at startup.
  */
@@ -23,8 +22,8 @@ export const APP_BAR_PARAM = "hmnd-appbar";
 /** `full` | `compact` | `hidden`. How much toolbar each panel renders. */
 export const TOOLBARS_PARAM = "hmnd-toolbars";
 
-/** Unlocks mosaic drag, split and resize, and the panel add/remove controls. */
-export const UNLOCK_PARAM = "hmnd-unlock";
+/** Locks mosaic drag, split and resize, and the panel add/remove controls. */
+export const LOCK_PARAM = "hmnd-lock";
 
 /** Restores the stock sidebars instead of starting them collapsed. */
 export const SIDEBARS_PARAM = "hmnd-sidebars";
@@ -37,7 +36,7 @@ export type ChromeParams = {
   collapseSidebars: boolean;
 };
 
-/** True only for an explicit `=1`, so a bare or misspelled value does not unfreeze the layout. */
+/** True only for an explicit `=1`; a bare or misspelled value keeps the default. */
 function isEnabled(params: URLSearchParams, name: string): boolean {
   return params.get(name) === "1";
 }
@@ -49,7 +48,7 @@ export function resolveChromeParams(params: URLSearchParams): ChromeParams {
     // Authoring a layout means seeing the panel actions, so restoring the app bar restores the
     // toolbars with it unless the parameter says otherwise.
     panelToolbarMode: params.get(TOOLBARS_PARAM) ?? (showAppBar ? "full" : "hidden"),
-    layoutLocked: !isEnabled(params, UNLOCK_PARAM),
+    layoutLocked: isEnabled(params, LOCK_PARAM),
     collapseSidebars: !isEnabled(params, SIDEBARS_PARAM),
   };
 }

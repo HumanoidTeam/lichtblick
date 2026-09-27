@@ -31,7 +31,8 @@ It is not an official Lichtblick release.
 
 - `web-hmnd/`: a web entrypoint for HMND tools. It limits the data sources, hides the app bar
   unless a URL parameter enables it, loads extensions that are served next to the bundle, and
-  sets toolbar mode and layout lock from URL parameters.
+  sets toolbar mode and layout lock from URL parameters. The layout lock is opt-in (`hmnd-lock=1`);
+  without it the layout is unlocked.
 - `web-hmnd/src/index.ts` exports `main({ extraPanels, extraSceneExtensions })`. `web-hmnd/webpack.config.ts` exports
   `makeWebHmndConfig({ contextPath, entrypoint, outputPath })`. A downstream build can use its
   own entry file and add panels. Refer to `web-hmnd/README.md`.

@@ -12,12 +12,12 @@ function resolve(query: string) {
 }
 
 describe("resolveChromeParams", () => {
-  it("defaults to the frozen operator configuration when no parameters are given", () => {
+  it("defaults to the operator configuration when no parameters are given", () => {
     // This is the case an embedding iframe hits, and the one a dropped parameter degrades to
     expect(resolve("")).toEqual({
       showAppBar: false,
       panelToolbarMode: "hidden",
-      layoutLocked: true,
+      layoutLocked: false,
       collapseSidebars: true,
     });
   });
@@ -41,14 +41,15 @@ describe("resolveChromeParams", () => {
     });
   });
 
-  it("unlocks the layout only for an explicit 1", () => {
-    expect(resolve("hmnd-unlock=1").layoutLocked).toBe(false);
+  it("locks the layout only for an explicit 1", () => {
+    expect(resolve("hmnd-lock=1").layoutLocked).toBe(true);
 
-    // Anything else leaves the layout frozen: a mistyped parameter must not hand an operator the
-    // ability to rearrange a console mid-shift
-    for (const query of ["hmnd-unlock=0", "hmnd-unlock", "hmnd-unlock=true", "hmnd-unlock=yes"]) {
-      expect(resolve(query).layoutLocked).toBe(true);
+    // Anything else keeps the stock, unlocked layout
+    for (const query of ["hmnd-lock=0", "hmnd-lock", "hmnd-lock=true", "hmnd-lock=yes"]) {
+      expect(resolve(query).layoutLocked).toBe(false);
     }
+    // The removed parameter has no effect
+    expect(resolve("hmnd-unlock=1").layoutLocked).toBe(false);
   });
 
   it("restores the sidebars only for an explicit 1", () => {
@@ -64,7 +65,7 @@ describe("resolveChromeParams", () => {
   });
 
   it("combines every authoring escape", () => {
-    expect(resolve("hmnd-appbar=1&hmnd-unlock=1&hmnd-sidebars=1")).toEqual({
+    expect(resolve("hmnd-appbar=1&hmnd-sidebars=1")).toEqual({
       showAppBar: true,
       panelToolbarMode: "full",
       layoutLocked: false,
@@ -76,7 +77,7 @@ describe("resolveChromeParams", () => {
     expect(resolve("ds=foxglove-websocket&ds.url=ws://host:8765&layoutUrl=/x.json")).toEqual({
       showAppBar: false,
       panelToolbarMode: "hidden",
-      layoutLocked: true,
+      layoutLocked: false,
       collapseSidebars: true,
     });
   });
