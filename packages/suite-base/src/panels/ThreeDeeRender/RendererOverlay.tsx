@@ -101,6 +101,8 @@ const useStyles = makeStyles()((theme) => ({
 type Props = {
   addPanel: LayoutActions["addPanel"];
   canPublish: boolean;
+  /** Whether the renderer has a fixed frame. A prop so that the memoized overlay updates. */
+  hasFixedFrame: boolean;
   canvas: HTMLCanvasElement | ReactNull;
   enableStats: boolean;
   interfaceMode: InterfaceMode;
@@ -365,7 +367,7 @@ export const RendererOverlay = memo(function RendererOverlay(props: Props): Reac
 
   // Publish control is only available if the canPublish prop is true and we have a fixed frame in the renderer
   const showPublishControl =
-    props.interfaceMode === "3d" && props.canPublish && renderer?.fixedFrameId != undefined;
+    props.interfaceMode === "3d" && props.canPublish && props.hasFixedFrame;
   const publishControls = showPublishControl && (
     <>
       <Tooltip

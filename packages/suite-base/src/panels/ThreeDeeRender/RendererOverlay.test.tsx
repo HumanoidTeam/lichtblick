@@ -91,6 +91,7 @@ describe("<RendererOverlay /> hover wiring", () => {
         <RendererOverlay
           addPanel={jest.fn() as any}
           canPublish={false}
+          hasFixedFrame={false}
           canvas={canvas}
           enableStats={false}
           interfaceMode="3d"

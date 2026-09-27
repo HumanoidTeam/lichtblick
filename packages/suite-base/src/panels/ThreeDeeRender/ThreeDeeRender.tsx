@@ -1063,6 +1063,7 @@ export function ThreeDeeRender(props: Readonly<ThreeDeeRenderProps>): React.JSX.
             measureActive={measureActive}
             onClickMeasure={onClickMeasure}
             canPublish={canPublish}
+            hasFixedFrame={renderer?.fixedFrameId != undefined}
             publishActive={publishActive}
             onClickPublish={onClickPublish}
             onShowTopicSettings={onShowTopicSettings}
