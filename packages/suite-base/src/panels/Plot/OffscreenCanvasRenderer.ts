@@ -10,11 +10,10 @@ import type { Theme } from "@mui/material";
 import * as Comlink from "@lichtblick/comlink";
 import { ComlinkWrap } from "@lichtblick/den/worker";
 import { Immutable } from "@lichtblick/suite";
-import { Bounds } from "@lichtblick/suite-base/types/Bounds";
 
 import { ChartRenderer } from "./ChartRenderer";
 import type { Service } from "./ChartRenderer.worker";
-import { Dataset, HoverElement, Scale, UpdateAction } from "./types";
+import { Dataset, HoverElement, PlotBounds, Scale, UpdateAction } from "./types";
 
 // If the datasets builder is garbage collected we also need to cleanup the worker
 // This registry ensures the worker is cleaned up when the builder is garbage collected
@@ -56,7 +55,7 @@ export class OffscreenCanvasRenderer {
     registry.register(this, dispose);
   }
 
-  public async update(action: Immutable<UpdateAction>): Promise<Bounds | undefined> {
+  public async update(action: Immutable<UpdateAction>): Promise<PlotBounds | undefined> {
     return await (await this.#remote).update(action);
   }
 

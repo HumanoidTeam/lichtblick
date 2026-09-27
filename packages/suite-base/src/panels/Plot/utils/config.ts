@@ -25,6 +25,12 @@ export type PlotPath = BasePlotPath & {
   timestampMethod: TimestampMethod;
   showLine?: boolean;
   lineSize?: number;
+  /** Hold the previous value until the next sample; omitted preserves linear rendering. */
+  lineInterpolation?: "linear" | "step";
+  /** Plot terminal numeric-array indices as independent timestamp series. */
+  expandArrays?: boolean;
+  /** Absent in legacy layouts: use the existing left Y axis. */
+  yAxis?: "left" | "right";
 };
 
 export type PlotXAxisVal =
@@ -93,6 +99,11 @@ export type PlotConfig = DeprecatedPlotConfig & {
   xAxisPath?: BasePlotPath;
   xAxisLabel?: string;
   yAxisLabel?: string;
+  /** Axis text may include units; values are never converted implicitly. */
+  yRightAxisLabel?: string;
+  minYRightValue?: number;
+  maxYRightValue?: number;
+  showYRightAxisLabels?: boolean;
   followingViewWidth?: number;
   sidebarDimension: number;
   [PANEL_TITLE_CONFIG_KEY]?: string;

@@ -80,6 +80,73 @@ function buildPlayerState(
   };
 }
 
+describe("TimestampDatasetsBuilderImpl buffer reuse", () => {
+  const [series] = buildSeriesItems([{ value: "/signal.value" }]);
+  const items = [1, 4, 2, 8].map((value, x) => ({
+    x,
+    y: value,
+    value,
+    receiveTime: { sec: x, nsec: 0 },
+  }));
+  const viewport = { bounds: {}, size: { width: 1000, height: 400 } };
+
+  it("does not clone the full history before selecting a narrow viewport", () => {
+    const builder = new TimestampDatasetsBuilderImpl();
+    builder.applyActions([
+      { type: "update-series-config", seriesItems: [series!] },
+      { type: "append-full", series: series!.key, items },
+    ]);
+    const slice = jest.spyOn(Array.prototype, "slice");
+    try {
+      const data = builder.getViewportDatasets({
+        ...viewport,
+        bounds: { x: { min: 1.25, max: 1.75 } },
+      });
+      const fullCopies = slice.mock.calls.filter((args) => args.length === 0);
+      slice.mockRestore();
+      expect(fullCopies).toHaveLength(0);
+      expect(data[0]?.data).toEqual([
+        { x: 1, y: 4, value: 4 },
+        { x: 2, y: 2, value: 2 },
+      ]);
+    } finally {
+      slice.mockRestore();
+    }
+  });
+
+  it("preserves raw values across repeated derivatives and current-buffer resets", () => {
+    const builder = new TimestampDatasetsBuilderImpl();
+    builder.applyActions([
+      { type: "update-series-config", seriesItems: [series!] },
+      { type: "append-full", series: series!.key, items },
+    ]);
+    const original = builder.getViewportDatasets(viewport);
+    const csv = builder.getCsvData();
+    const [derivative] = buildSeriesItems([{ value: "/signal.value.@derivative" }]);
+    builder.applyAction({ type: "update-series-config", seriesItems: [derivative!] });
+    const result = builder.getViewportDatasets(viewport);
+    expect(result[0]?.data).toEqual([
+      { x: 1, y: 3, value: 3 },
+      { x: 2, y: -2, value: -2 },
+      { x: 3, y: 6, value: 6 },
+    ]);
+    expect(builder.getViewportDatasets(viewport)).toEqual(result);
+    expect(builder.getCsvData()[0]?.data).toEqual(csv[0]?.data);
+    builder.applyActions([
+      { type: "update-series-config", seriesItems: [series!] },
+      { type: "append-current", series: series!.key, items: [{ ...items[0]!, x: 5 }] },
+    ]);
+    expect(builder.getViewportDatasets(viewport)[0]?.data).toContainEqual({
+      x: NaN,
+      y: NaN,
+      value: NaN,
+    });
+    builder.applyAction({ type: "reset-current", series: series!.key });
+    expect(builder.getViewportDatasets(viewport)).toEqual(original);
+    expect(builder.getCsvData()).toEqual(csv);
+  });
+});
+
 describe("TimestampDatasetsBuilder", () => {
   it("should process current messages into a dataset", async () => {
     const builder = new TimestampDatasetsBuilder();

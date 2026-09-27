@@ -35,6 +35,8 @@ type Props = Immutable<{
   labelsByConfigIndex?: Record<string, undefined | string>;
   // Flag indicating the containing chart has multiple datasets
   multiDataset: boolean;
+  /** Optional renderer dataset index; other chart callers retain their existing appearance. */
+  highlightedSeriesIndex?: number;
 }>;
 
 const useStyles = makeStyles()((theme) => ({
@@ -70,6 +72,10 @@ const useStyles = makeStyles()((theme) => ({
     fontWeight: 600,
     paddingLeft: theme.spacing(2),
   },
+  highlighted: {
+    backgroundColor: theme.palette.action.selected,
+    textDecoration: "underline",
+  },
   overflow: {
     gridColumn: "2/4",
     opacity: theme.palette.action.disabledOpacity,
@@ -95,6 +101,7 @@ export default function TimeBasedChartTooltipContent(
     content,
     labelsByConfigIndex: labelsByDatasetIndex,
     multiDataset,
+    highlightedSeriesIndex,
   } = props;
   const { classes, cx } = useStyles();
 
@@ -166,6 +173,7 @@ export default function TimeBasedChartTooltipContent(
         const color = colorsByDatasetIndex?.[datasetIndex];
         const label = labelsByDatasetIndex?.[datasetIndex];
         const tooltip = item.tooltip;
+        const highlighted = datasetIndex === highlightedSeriesIndex;
         const value =
           typeof tooltip.value === "string"
             ? tooltip.value
@@ -180,8 +188,13 @@ export default function TimeBasedChartTooltipContent(
             ) : (
               <span className={classes.colorIconReplacement} />
             )}
-            <div className={classes.path}>{label ?? ""}</div>
-            <div className={classes.value}>
+            <div
+              className={cx(classes.path, { [classes.highlighted]: highlighted })}
+              data-highlighted={highlighted || undefined}
+            >
+              {label ?? ""}
+            </div>
+            <div className={cx(classes.value, { [classes.highlighted]: highlighted })}>
               {value}
               {tooltip.constantName != undefined ? ` (${tooltip.constantName})` : ""}
             </div>

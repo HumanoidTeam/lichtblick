@@ -25,7 +25,8 @@ import { SaveConfig } from "@lichtblick/suite-base/types/panels";
 
 import type { PlotCoordinator } from "./PlotCoordinator";
 import { PlotLegendRow, ROW_HEIGHT } from "./PlotLegendRow";
-import { PlotPath, PlotConfig } from "./utils/config";
+import { PlotArraySeries } from "./types";
+import { PlotPath, PlotConfig, plotPathDisplayName } from "./utils/config";
 
 const minLegendWidth = 25;
 const maxLegendWidth = 800;
@@ -40,6 +41,8 @@ type Props = Immutable<{
   sidebarDimension: number;
   showValues: boolean;
   hoveredValuesBySeriesIndex?: string[];
+  arraySeries?: PlotArraySeries[];
+  highlightedSeriesIndex?: number;
 }>;
 
 const useStyles = makeStyles<void, "grid" | "toggleButton" | "toggleButtonFloating">()(
@@ -157,6 +160,8 @@ function PlotLegendComponent(props: Props): React.JSX.Element {
     sidebarDimension,
     showValues,
     hoveredValuesBySeriesIndex,
+    arraySeries,
+    highlightedSeriesIndex,
   } = props;
   const { classes, cx } = useStyles();
 
@@ -248,8 +253,53 @@ function PlotLegendComponent(props: Props): React.JSX.Element {
     };
   }, [coordinator, showValues]);
 
-  const valuesBySeriesIndex = hoveredValuesBySeriesIndex ?? currentValuesBySeriesIndex;
   const valueSource = hoveredValuesBySeriesIndex ? "hover" : "current";
+  const [invalidArrays, setInvalidArrays] = useState<string[]>([]);
+  useEffect(() => {
+    coordinator?.on("pathsWithInvalidArraysChanged", setInvalidArrays);
+    return () => {
+      coordinator?.off("pathsWithInvalidArraysChanged", setInvalidArrays);
+      setInvalidArrays([]);
+    };
+  }, [coordinator]);
+
+  const rows = (paths.length === 0 ? [DEFAULT_PLOT_PATH] : paths).flatMap((path, configIndex) => {
+    const children = arraySeries?.filter((item) => item.configIndex === configIndex) ?? [];
+    const current = currentValuesBySeriesIndex?.[configIndex];
+    if (children.length === 0) {
+      return [
+        {
+          path,
+          configIndex,
+          datasetIndex: configIndex,
+          key: String(configIndex),
+          isArrayRow: false,
+          value:
+            arraySeries != undefined && path.expandArrays === true
+              ? undefined
+              : hoveredValuesBySeriesIndex
+                ? hoveredValuesBySeriesIndex[configIndex]
+                : current,
+        },
+      ];
+    }
+    return children.map((item) => ({
+      path: {
+        ...path,
+        color: item.color,
+        label: `${plotPathDisplayName(path, configIndex)} [${item.arrayIndex}]`,
+      },
+      configIndex,
+      datasetIndex: item.datasetIndex,
+      key: `${configIndex}:${item.arrayIndex}`,
+      isArrayRow: true,
+      value: hoveredValuesBySeriesIndex
+        ? hoveredValuesBySeriesIndex[item.datasetIndex]
+        : current instanceof Map
+          ? current.get(item.arrayIndex)
+          : undefined,
+    }));
+  });
 
   return (
     <div
@@ -276,18 +326,21 @@ function PlotLegendComponent(props: Props): React.JSX.Element {
             width: legendDisplay === "left" ? Math.round(sidebarDimension) : undefined,
           }}
         >
-          {(paths.length === 0 ? [DEFAULT_PLOT_PATH] : paths).map((path, index) => (
+          {rows.map(({ path, configIndex, datasetIndex, key, isArrayRow, value }) => (
             <PlotLegendRow
               hasMismatchedDataLength={pathsWithMismatchedDataLengths.includes(path.value)}
-              index={index}
-              key={index}
+              hasInvalidArray={invalidArrays.includes(path.value)}
+              isArrayRow={isArrayRow}
+              highlighted={path.enabled && datasetIndex === highlightedSeriesIndex}
+              index={configIndex}
+              key={key}
               onClickPath={() => {
-                onClickPath(index);
+                onClickPath(configIndex);
               }}
               path={path}
               paths={paths}
               savePaths={savePaths}
-              value={valuesBySeriesIndex?.[index]}
+              value={value}
               valueSource={valueSource}
             />
           ))}

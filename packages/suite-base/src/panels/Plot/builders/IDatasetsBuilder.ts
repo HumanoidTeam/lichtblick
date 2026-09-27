@@ -14,6 +14,7 @@ import type { PlayerState } from "@lichtblick/suite-base/players/types";
 import { TimestampMethod } from "@lichtblick/suite-base/util/time";
 
 import type { Dataset } from "../types";
+import { PlotPath } from "../utils/config";
 import { OriginalValue } from "../utils/datum";
 
 type CsvDatum = {
@@ -44,7 +45,14 @@ export type SeriesItem = {
   timestampMethod: TimestampMethod;
   showLine: boolean;
   lineSize: number;
+  lineInterpolation?: PlotPath["lineInterpolation"];
+  /** Chart.js scale identity; undefined retains the default left scale. */
+  yAxisID?: "yRight";
   enabled: boolean;
+  /** Opt-in timestamp-only numeric array expansion. */
+  expandArrays?: boolean;
+  arrayColor?: string;
+  colorScheme?: "light" | "dark";
 };
 
 export type Viewport = {
@@ -55,6 +63,7 @@ export type Viewport = {
   bounds: {
     x?: Partial<Bounds1D>;
     y?: Partial<Bounds1D>;
+    yRight?: Partial<Bounds1D>;
   };
   /** The pixel size of the viewport */
   size: Size;
@@ -65,6 +74,14 @@ export type CsvDataset = {
   data: CsvDatum[];
 };
 
+export type ArrayDataset = {
+  configIndex: number;
+  arrayIndex: number;
+  messagePath: string;
+  color: string;
+  dataset: Dataset;
+};
+
 export type GetViewportDatasetsResult = {
   /**
    * Indices correspond to original indices of series in `config.paths`. Array may be sparse if
@@ -72,6 +89,9 @@ export type GetViewportDatasetsResult = {
    */
   datasetsByConfigIndex: readonly (Dataset | undefined)[];
   pathsWithMismatchedDataLengths: ReadonlySet<string>;
+  /** Separate from the original-index slots; children never overwrite a following saved series. */
+  arrayDatasets?: readonly ArrayDataset[];
+  pathsWithInvalidArrays?: ReadonlySet<string>;
 };
 
 export type HandlePlayerStateResult = {

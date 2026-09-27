@@ -283,6 +283,7 @@ describe("ChartRenderer", () => {
     it("should update returns undefined", () => {
       (Chart as unknown as jest.Mock).mockImplementationOnce(() => ({
         update: jest.fn(),
+        options: {},
         scales: {
           x: undefined,
           y: undefined,
@@ -486,6 +487,47 @@ describe("ChartRenderer", () => {
 
       expect(elements).toEqual([{ data: { x: element1.x, y: element1.y }, configIndex: 0 }]);
     });
+  });
+
+  it("routes right bounds, tick labels, unit title and reference line without changing left scale", () => {
+    class InspectableRenderer extends ChartRenderer {
+      public inspect(): ChartType {
+        return this.getChartInstance();
+      }
+    }
+    const renderer = new InspectableRenderer(setup().props);
+    const chart = renderer.inspect();
+    chart.options.scales!.yRight = { type: "linear", axis: "y", display: false, ticks: {} };
+    chart.options.plugins!.annotation = { annotations: [] };
+    Object.assign(chart.scales, { yRight: { min: 1000, max: 2000 } });
+    const beforeLeft = { ...chart.options.scales!.y };
+    const bounds = renderer.update({
+      type: "update",
+      showRightYAxis: true,
+      yRightBounds: { min: 1000, max: 2000 },
+      showYRightAxisLabels: false,
+      yRightAxisLabel: "Pressure (Pa)",
+      referenceLines: [{ color: "black", value: 1500, yAxisID: "yRight" }],
+    });
+    expect(chart.options.scales!.yRight).toMatchObject({
+      min: 1000,
+      max: 2000,
+      display: true,
+      ticks: { display: false },
+      title: { display: true, text: "Pressure (Pa)" },
+    });
+    expect(chart.options.scales!.y).toEqual(beforeLeft);
+    expect(bounds?.yRight).toEqual({ min: 1000, max: 2000 });
+    expect(chart.options.plugins!.annotation.annotations).toEqual([
+      expect.objectContaining({ scaleID: "yRight", value: 1500 }),
+    ]);
+    const hidden = renderer.update({ type: "update", showRightYAxis: false, yRightBounds: {} });
+    expect(chart.options.scales!.yRight.display).toBe(false);
+    expect(chart.options.scales!.yRight.min).toBeUndefined();
+    expect(chart.options.scales!.yRight.max).toBeUndefined();
+    expect(hidden?.yRight).toBeUndefined();
+    delete chart.scales.yRight;
+    delete chart.options.scales!.yRight;
   });
 
   describe("updateDatasets", () => {

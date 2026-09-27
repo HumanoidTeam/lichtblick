@@ -61,6 +61,7 @@ describe("usePlotInteractionHandlers", () => {
 
   const setup = ({
     config,
+    arraySeries,
     coordinator,
     draggingRef,
     renderer,
@@ -82,6 +83,7 @@ describe("usePlotInteractionHandlers", () => {
         ...DEFAULT_PLOT_CONFIG,
         ...config,
       },
+      arraySeries,
       coordinator,
       draggingRef: { current: false, ...draggingRef },
       renderer: {
@@ -94,10 +96,10 @@ describe("usePlotInteractionHandlers", () => {
       subscriberId: subscriberId ?? BasicBuilder.string(),
     } as unknown as UsePlotInteractionHandlersProps;
 
-    return {
-      ...renderHook(() => usePlotInteractionHandlers(props)),
-      props,
-    };
+    const hook = renderHook(() => usePlotInteractionHandlers(props));
+    // Initial configuration clears hover; assertions below concern subsequent interactions.
+    jest.mocked(setActiveTooltip).mockClear();
+    return { ...hook, props };
   };
 
   const triggerMouseMove = async (
@@ -158,6 +160,67 @@ describe("usePlotInteractionHandlers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (debouncePromise as jest.Mock).mockReturnValue(mockBuildTooltip);
+  });
+
+  it("discards a pending hover when configuration changes before the worker returns", async () => {
+    (debouncePromise as jest.Mock).mockImplementation((fn) => fn);
+    const { result, props, rerender } = setup();
+    const elements = PlotBuilder.hoverElements(2);
+    let resolve!: (value: typeof elements) => void;
+    jest.mocked(props.renderer!.getElementsAtPixel).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    await triggerMouseMove(result);
+    props.config = { ...props.config, paths: [] };
+    rerender();
+    await act(async () => {
+      resolve(elements);
+    });
+    expect(props.setActiveTooltip).toHaveBeenLastCalledWith(undefined);
+    expect(
+      jest.mocked(props.setActiveTooltip).mock.calls.every(([value]) => value == undefined),
+    ).toBe(true);
+  });
+
+  it("discards an old child hover after generated dataset identities change", async () => {
+    (debouncePromise as jest.Mock).mockImplementation((fn) => fn);
+    const child = {
+      configIndex: 1,
+      arrayIndex: 2,
+      datasetIndex: 4,
+      messagePath: "/sample.values[2]",
+      color: "purple",
+    };
+    const { result, props, rerender } = setup({ arraySeries: [child] });
+    const elements = [PlotBuilder.hoverElement({ configIndex: child.datasetIndex })];
+    let resolve!: (value: typeof elements) => void;
+    jest.mocked(props.renderer!.getElementsAtPixel).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const originalConfig = props.config;
+    await triggerMouseMove(result);
+    const nextChild = { ...child, datasetIndex: child.datasetIndex + 1 };
+    props.arraySeries = [nextChild];
+    rerender();
+    await act(async () => {
+      resolve(elements);
+    });
+    expect(props.config).toBe(originalConfig);
+    expect(props.setActiveTooltip).toHaveBeenLastCalledWith(undefined);
+    expect(
+      jest.mocked(props.setActiveTooltip).mock.calls.every(([value]) => value == undefined),
+    ).toBe(true);
+    jest
+      .mocked(props.renderer!.getElementsAtPixel)
+      .mockResolvedValueOnce([PlotBuilder.hoverElement({ configIndex: nextChild.datasetIndex })]);
+    await triggerMouseMove(result);
+    expect(jest.mocked(props.setActiveTooltip).mock.lastCall?.[0]?.data[0]?.configIndex).toBe(
+      nextChild.datasetIndex,
+    );
   });
 
   describe("setActiveTooltip", () => {

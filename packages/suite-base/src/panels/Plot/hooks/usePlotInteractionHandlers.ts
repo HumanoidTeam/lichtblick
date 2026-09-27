@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
-import { useCallback, useRef, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { useMountedState } from "react-use";
 
 import { debouncePromise } from "@lichtblick/den/async";
@@ -29,6 +29,7 @@ const DEFAULT_CSV_TITLE = "plot_data";
 
 const usePlotInteractionHandlers = ({
   config,
+  arraySeries,
   coordinator,
   draggingRef,
   renderer,
@@ -44,15 +45,22 @@ const usePlotInteractionHandlers = ({
   const setGlobalBounds = useTimelineInteractionState(selectSetGlobalBounds);
   const getMessagePipelineState = useMessagePipelineGetter();
   const [focusedPath, setFocusedPath] = useState<undefined | string[]>(undefined);
+  const tooltipRevision = useRef(0);
+  useEffect(() => {
+    ++tooltipRevision.current;
+    mousePresentRef.current = false;
+    setActiveTooltip(undefined);
+  }, [config, arraySeries, renderer, setActiveTooltip]);
 
   const buildTooltip = useMemo(() => {
     return debouncePromise(async (args: ElementAtPixelArgs) => {
+      const revision = tooltipRevision.current;
       const elements = await renderer?.getElementsAtPixel({
         x: args.canvasX,
         y: args.canvasY,
       });
 
-      if (!isMounted()) {
+      if (!isMounted() || revision !== tooltipRevision.current) {
         return;
       }
 
@@ -114,6 +122,7 @@ const usePlotInteractionHandlers = ({
   );
 
   const onMouseOut = useCallback(() => {
+    ++tooltipRevision.current;
     mousePresentRef.current = false;
     setActiveTooltip(undefined);
     clearHoverValue(subscriberId);

@@ -105,6 +105,69 @@ describe("PlotCoordinator", () => {
   });
 
   describe("handlePlayerState", () => {
+    it("clears current array indices on missing observations using actual source positions", () => {
+      const realParse = jest.requireActual<typeof import("@lichtblick/message-path")>(
+        "@lichtblick/message-path",
+      ).parseMessagePath;
+      const realRead = jest.requireActual<
+        typeof import("@lichtblick/suite-base/components/MessagePathSyntax/simpleGetMessagePathDataItems")
+      >(
+        "@lichtblick/suite-base/components/MessagePathSyntax/simpleGetMessagePathDataItems",
+      ).simpleGetMessagePathDataItems;
+      jest.mocked(simpleGetMessagePathDataItems).mockImplementation(realRead);
+      const parsed = realParse("/sample.values[2:4]")!;
+      plotCoordinator["series"] = [
+        {
+          key: "array" as SeriesConfigKey,
+          configIndex: 0,
+          messagePath: "/sample.values[2:4]",
+          parsed,
+          color: "purple",
+          contrastColor: "purple",
+          timestampMethod: "receiveTime",
+          enabled: true,
+          showLine: true,
+          lineSize: 1,
+          expandArrays: true,
+        },
+      ];
+      const listener = jest.fn();
+      plotCoordinator.on("currentValuesChanged", listener);
+      const activeData = PlayerBuilder.activeData({
+        lastSeekTime: 1,
+        messages: [
+          {
+            topic: "/sample",
+            schemaName: "sample",
+            sizeInBytes: 0,
+            receiveTime: { sec: 1, nsec: 0 },
+            message: { values: [0, 0, 22, 33] },
+          },
+        ],
+      });
+      plotCoordinator.handlePlayerState(PlayerBuilder.playerState({ activeData }));
+      expect(listener).toHaveBeenLastCalledWith([
+        new Map([
+          [2, 22],
+          [3, 33],
+        ]),
+      ]);
+      plotCoordinator.handlePlayerState(
+        PlayerBuilder.playerState({
+          activeData: {
+            ...activeData,
+            messages: [{ ...activeData.messages[0]!, message: { values: [] } }],
+          },
+        }),
+      );
+      expect(listener).toHaveBeenLastCalledWith([new Map()]);
+      plotCoordinator.handlePlayerState(
+        PlayerBuilder.playerState({ activeData: { ...activeData, lastSeekTime: 2, messages: [] } }),
+      );
+      expect(listener).toHaveBeenLastCalledWith([]);
+      jest.mocked(simpleGetMessagePathDataItems).mockReset();
+    });
+
     it("should emit 'currentValuesChanged' when processing player state", () => {
       const state = PlayerBuilder.playerState({
         activeData: PlayerBuilder.activeData(),
@@ -466,6 +529,53 @@ describe("PlotCoordinator", () => {
   });
 
   describe("dispatchDownsample", () => {
+    it("appends indexed datasets after every original config slot and emits explicit parent identity", async () => {
+      plotCoordinator["configPathCount"] = 3;
+      const queue = jest.fn().mockResolvedValue(undefined);
+      plotCoordinator["queueDatasetsRender"] = queue;
+      const scalar = { data: [{ x: 1, y: 42 }] };
+      const child = { data: [{ x: 1, y: 3 }] };
+      datasetsBuilder.getViewportDatasets.mockResolvedValue({
+        datasetsByConfigIndex: [undefined, scalar],
+        pathsWithMismatchedDataLengths: new Set(),
+        arrayDatasets: [
+          {
+            configIndex: 0,
+            arrayIndex: 2,
+            color: "purple",
+            messagePath: "/sample.values[2]",
+            dataset: child,
+          },
+        ],
+      });
+      const listener = jest.fn();
+      plotCoordinator.on("arraySeriesChanged", listener);
+      await plotCoordinator["dispatchDownsample"]();
+      expect(queue).toHaveBeenCalledWith([{ data: [] }, scalar, { data: [] }, child]);
+      expect(listener).toHaveBeenCalledWith([
+        {
+          configIndex: 0,
+          arrayIndex: 2,
+          datasetIndex: 3,
+          color: "purple",
+          messagePath: "/sample.values[2]",
+        },
+      ]);
+      await plotCoordinator["dispatchDownsample"]();
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not publish stale child mappings after config changes during an async request", async () => {
+      const queue = jest.fn().mockResolvedValue(undefined);
+      plotCoordinator["queueDatasetsRender"] = queue;
+      datasetsBuilder.getViewportDatasets.mockImplementation(async () => {
+        ++plotCoordinator["configRevision"];
+        return { datasetsByConfigIndex: [], pathsWithMismatchedDataLengths: new Set() };
+      });
+      await plotCoordinator["dispatchDownsample"]();
+      expect(queue).not.toHaveBeenCalled();
+    });
+
     it("should call 'getViewportDatasets' when dispatching downsample", async () => {
       datasetsBuilder.getViewportDatasets = jest.fn().mockResolvedValue({
         datasetsByConfigIndex: [],
@@ -477,6 +587,115 @@ describe("PlotCoordinator", () => {
       const getViewportDatasetsSpyOn = jest.spyOn(datasetsBuilder, "getViewportDatasets");
       expect(getViewportDatasetsSpyOn).toHaveBeenCalled();
     });
+  });
+
+  it("keeps axis identity, bounds and reference lines through interaction, reset and hiding", async () => {
+    const setSeriesSpy = jest.spyOn(datasetsBuilder, "setSeries");
+    const updateSpy = jest.spyOn(renderer, "update");
+    plotCoordinator["queueDispatchRender"] = jest.fn().mockResolvedValue(undefined);
+    plotCoordinator["queueDispatchDownsample"] = jest.fn().mockResolvedValue(undefined);
+    jest.mocked(parseMessagePath).mockImplementation((value) => ({
+      topicName: value,
+      topicNameRepr: value,
+      messagePath: [],
+    }));
+    jest.mocked(fillInGlobalVariablesInPath).mockImplementation((parsed) => parsed);
+    jest.mocked(stringifyMessagePath).mockImplementation((parsed) => parsed.topicName);
+    const config = PlotBuilder.config({
+      paths: [
+        PlotBuilder.path({ value: "/disabled", enabled: false }),
+        PlotBuilder.path({ value: "/position", enabled: true }),
+        PlotBuilder.path({ value: "/pressure", yAxis: "right", enabled: true }),
+        PlotBuilder.path({ value: "1500", yAxis: "right", enabled: true }),
+      ],
+      minYValue: 0,
+      maxYValue: 1,
+      minYRightValue: 1000,
+      maxYRightValue: 2000,
+      yRightAxisLabel: "Pressure (Pa)",
+    });
+    plotCoordinator.handleConfig(config, "light", {});
+    await plotCoordinator["dispatchRender"]();
+    expect(setSeriesSpy).toHaveBeenLastCalledWith(
+      expect.arrayContaining([expect.objectContaining({ configIndex: 2, yAxisID: "yRight" })]),
+    );
+    expect(updateSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        yBounds: { min: 0, max: 1 },
+        yRightBounds: { min: 1000, max: 2000 },
+        yRightAxisLabel: "Pressure (Pa)",
+        showRightYAxis: true,
+        referenceLines: [expect.objectContaining({ value: 1500, yAxisID: "yRight" })],
+      }),
+    );
+    expect(plotCoordinator["viewport"].bounds.yRight).toEqual({ min: 1000, max: 2000 });
+
+    const moved = {
+      x: { min: 2, max: 8 },
+      y: { min: 0.2, max: 0.8 },
+      yRight: { min: 1200, max: 1800 },
+    };
+    renderer.update.mockResolvedValue(moved);
+    plotCoordinator.addInteractionEvent({
+      type: "panmove",
+      deltaX: 0,
+      deltaY: 20,
+      cancelable: true,
+      boundingClientRect: {} as DOMRect,
+    });
+    await plotCoordinator["dispatchRender"]();
+    expect(plotCoordinator["viewport"].bounds).toEqual(moved);
+    plotCoordinator.handleConfig(
+      { ...config, minYRightValue: 1300, maxYRightValue: 1900 },
+      "light",
+      {},
+    );
+    await plotCoordinator["dispatchRender"]();
+    expect(plotCoordinator["viewport"].bounds).toEqual({
+      ...moved,
+      yRight: { min: 1300, max: 1900 },
+    });
+    expect(moved.yRight).toEqual({ min: 1200, max: 1800 });
+    plotCoordinator.handleConfig(config, "light", {});
+    plotCoordinator.resetBounds();
+    await plotCoordinator["dispatchRender"]();
+    expect(updateSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        yBounds: { min: 0, max: 1 },
+        yRightBounds: { min: 1000, max: 2000 },
+      }),
+    );
+    expect(plotCoordinator["viewport"].bounds.yRight).toEqual({ min: 1000, max: 2000 });
+
+    plotCoordinator.handleConfig(
+      {
+        ...config,
+        paths: config.paths.map((p) => ({ ...p, enabled: p.enabled && p.yAxis !== "right" })),
+      },
+      "light",
+      {},
+    );
+    await plotCoordinator["dispatchRender"]();
+    expect(updateSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showRightYAxis: false }));
+    const rightKey = setSeriesSpy.mock.calls[0]?.[0].find((s) => s.configIndex === 2)?.key;
+    expect(rightKey).toBeDefined();
+    plotCoordinator.setGlobalBounds({ min: 3, max: 7 });
+    plotCoordinator.handleConfig(
+      { ...config, paths: config.paths.map((p) => ({ ...p, yAxis: undefined })) },
+      "light",
+      {},
+    );
+    await plotCoordinator["dispatchRender"]();
+    expect(updateSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        showRightYAxis: false,
+        xBounds: { min: 3, max: 7 },
+        yBounds: { min: 0, max: 1 },
+      }),
+    );
+    const reassigned = setSeriesSpy.mock.lastCall?.[0].find((s) => s.configIndex === 2);
+    expect(reassigned?.yAxisID).toBeUndefined();
+    expect(reassigned?.key).toBe(rightKey);
   });
 
   describe("resetBounds", () => {
@@ -602,6 +821,30 @@ describe("PlotCoordinator", () => {
       expect(plotCoordinator["series"][2]?.messagePath).toBe(config.paths[2]?.value);
       const setSeriesSpy = jest.spyOn(datasetsBuilder, "setSeries");
       expect(setSeriesSpy).toHaveBeenCalledWith(plotCoordinator["series"]);
+    });
+
+    it("passes interpolation through without changing the series data identity", () => {
+      const path = {
+        ...PlotBuilder.path(),
+        value: "/state.mode",
+        lineInterpolation: "step" as const,
+      };
+      (parseMessagePath as jest.Mock).mockReturnValue({ topicName: "/state" });
+      (fillInGlobalVariablesInPath as jest.Mock).mockImplementation((parsed) => parsed);
+      (stringifyMessagePath as jest.Mock).mockReturnValue(path.value);
+      plotCoordinator.handleConfig(PlotBuilder.config({ paths: [path] }), "light", {});
+      const initial = plotCoordinator["series"][0]!;
+      expect(initial.lineInterpolation).toBe("step");
+
+      plotCoordinator.handleConfig(
+        PlotBuilder.config({ paths: [{ ...path, lineInterpolation: "linear" }] }),
+        "light",
+        {},
+      );
+      expect(plotCoordinator["series"][0]).toMatchObject({
+        key: initial.key,
+        lineInterpolation: "linear",
+      });
     });
 
     it("should correctly create 2 series even if both have the same message path", () => {

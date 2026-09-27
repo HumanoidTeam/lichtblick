@@ -5,7 +5,8 @@
 
 import "@testing-library/jest-dom";
 import { userEvent } from "@storybook/testing-library";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import EventEmitter from "eventemitter3";
 import { useMemo } from "react";
 
 import PanelContext from "@lichtblick/suite-base/components/PanelContext";
@@ -13,6 +14,7 @@ import { useSelectedPanels } from "@lichtblick/suite-base/context/CurrentLayoutC
 import { BasicBuilder } from "@lichtblick/test-builders";
 
 import { PlotLegend } from "./PlotLegend";
+import { PlotCoordinatorEventTypes } from "./types";
 
 const defaultProps = {
   showLegend: true,
@@ -96,6 +98,25 @@ describe("PlotLegend", () => {
     jest.clearAllMocks();
   });
 
+  it.each(["left", "top", "floating"])(
+    "highlights only the enabled original series with values hidden (%s)",
+    (legendDisplay) => {
+      const paths = [
+        { value: "/first", enabled: true, timestampMethod: "receiveTime" },
+        { value: "/second", enabled: true, timestampMethod: "receiveTime" },
+        { value: "/disabled", enabled: false, timestampMethod: "receiveTime" },
+      ];
+      const { container, unmount } = setup({ paths, legendDisplay, highlightedSeriesIndex: 1 });
+      const highlighted = container.querySelectorAll("[data-highlighted=true]");
+      expect(highlighted).toHaveLength(1);
+      expect(highlighted[0]).toHaveTextContent("/second");
+      expect(highlighted[0]).not.toHaveTextContent("/first");
+      unmount();
+      const disabled = setup({ paths, legendDisplay, highlightedSeriesIndex: 2 });
+      expect(disabled.container.querySelector("[data-highlighted=true]")).toBeNull();
+    },
+  );
+
   it("renders PlotLegend without crashing", () => {
     setup();
     expect(screen.getByTitle("Add series")).toBeDefined();
@@ -130,5 +151,116 @@ describe("PlotLegend", () => {
     await userEvent.setup().click(screen.getByText(path));
 
     expect(mockOnClickPath).toHaveBeenCalledWith(0);
+  });
+
+  const arrayPaths = [
+    {
+      value: "/sample.values[2:3]",
+      label: "Joints",
+      expandArrays: true,
+      enabled: true,
+      timestampMethod: "receiveTime",
+    },
+    { value: "/sample.scalar", label: "Scalar", enabled: true, timestampMethod: "receiveTime" },
+  ];
+  const arraySeries = [2, 3].map((arrayIndex, index) => ({
+    configIndex: 0,
+    arrayIndex,
+    datasetIndex: index + 2,
+    messagePath: `/sample.values[${arrayIndex}]`,
+    color: "purple",
+  }));
+
+  it.each(["left", "top", "floating"])(
+    "highlights the exact generated array child, not its parent or source index (%s)",
+    (legendDisplay) => {
+      const paths = [
+        { value: "/disabled", enabled: false, timestampMethod: "receiveTime" },
+        ...arrayPaths,
+        { value: "1500", enabled: true, timestampMethod: "receiveTime" },
+      ];
+      const children = arraySeries.map((item, index) => ({
+        ...item,
+        configIndex: 1,
+        datasetIndex: paths.length + index,
+      }));
+      const selected = children[1]!;
+      const { container, unmount } = setup({
+        paths,
+        arraySeries: children,
+        legendDisplay,
+        highlightedSeriesIndex: selected.datasetIndex,
+        showValues: false,
+      });
+      const highlighted = container.querySelectorAll("[data-highlighted=true]");
+      expect(highlighted).toHaveLength(1);
+      expect(highlighted[0]).toHaveTextContent(`Joints [${selected.arrayIndex}]`);
+      expect(highlighted[0]).not.toHaveTextContent("Scalar");
+      unmount();
+      const disabled = setup({
+        paths: paths.map((seriesPath, index) =>
+          index === selected.configIndex ? { ...seriesPath, enabled: false } : seriesPath,
+        ),
+        arraySeries: children,
+        legendDisplay,
+        highlightedSeriesIndex: selected.datasetIndex,
+      });
+      expect(disabled.container.querySelector("[data-highlighted=true]")).toBeNull();
+    },
+  );
+
+  it("edits, hides and deletes the original array configuration from either child", async () => {
+    const saveConfig = jest.fn();
+    const onClickPath = jest.fn();
+    setup({ paths: arrayPaths, arraySeries, saveConfig, onClickPath });
+    expect(
+      screen.getAllByTestId("plot-legend-row-path-label").map((item) => item.textContent),
+    ).toEqual(["Joints [2]", "Joints [3]", "Scalar"]);
+    await userEvent.setup().click(screen.getByText("Joints [3]"));
+    expect(onClickPath).toHaveBeenLastCalledWith(0);
+    await userEvent.setup().click(screen.getAllByRole("checkbox")[1]!);
+    expect(saveConfig).toHaveBeenLastCalledWith({
+      paths: [{ ...arrayPaths[0], enabled: false }, arrayPaths[1]],
+    });
+    await userEvent
+      .setup()
+      .click(screen.getAllByRole("button", { name: "Delete array series (all indices)" })[1]!);
+    expect(saveConfig).toHaveBeenLastCalledWith({ paths: [arrayPaths[1]] });
+    expect(arrayPaths[0]!.enabled).toBe(true);
+    expect(arrayPaths.length).toBe(2);
+  });
+
+  it("uses per-index current values and clears missing indices instead of repeating an old scalar", () => {
+    const coordinator = new EventEmitter<PlotCoordinatorEventTypes>();
+    setup({ paths: arrayPaths, arraySeries, coordinator, showValues: true });
+    act(() => {
+      coordinator.emit("currentValuesChanged", [
+        new Map([
+          [2, 222],
+          [3, 333],
+        ]),
+        444,
+      ]);
+    });
+    expect(screen.getByText("222")).toBeDefined();
+    expect(screen.getByText("333")).toBeDefined();
+    expect(screen.getByText("444")).toBeDefined();
+    act(() => {
+      coordinator.emit("currentValuesChanged", [new Map([[2, 223]]), 444]);
+    });
+    expect(screen.queryByText("333")).toBeNull();
+    expect(screen.getByText("223")).toBeDefined();
+  });
+
+  it("reads hovered child values by renderer dataset index, not original config index", () => {
+    setup({
+      paths: arrayPaths,
+      arraySeries,
+      showValues: true,
+      hoveredValuesBySeriesIndex: [undefined, 444, 222, 333],
+    });
+    expect(screen.getByText("222")).toBeDefined();
+    expect(screen.getByText("333")).toBeDefined();
+    expect(screen.getByText("444")).toBeDefined();
   });
 });

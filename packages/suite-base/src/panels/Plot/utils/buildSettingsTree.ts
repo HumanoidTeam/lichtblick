@@ -13,7 +13,7 @@ import { PLOTABLE_ROS_TYPES } from "@lichtblick/suite-base/panels/shared/constan
 import { lineColors } from "@lichtblick/suite-base/util/plotColors";
 
 const makeSeriesNode = memoizeWeak(
-  ({ canDelete, canReorder, index, path, t }: MakeSeriesNode): SettingsTreeNode => {
+  ({ canDelete, canReorder, index, path, isTimestamp, t }: MakeSeriesNode): SettingsTreeNode => {
     const actions = [];
 
     if (canDelete) {
@@ -45,10 +45,25 @@ const makeSeriesNode = memoizeWeak(
           label: t("label"),
           value: path.label,
         },
+        yAxis: {
+          input: "select",
+          label: t("yAxis"),
+          value: path.yAxis ?? "left",
+          options: [
+            { label: t("left"), value: "left" },
+            { label: t("right"), value: "right" },
+          ],
+          help: t("yAxisHelp"),
+        },
         color: {
           input: "rgb",
           label: t("color"),
-          value: path.color ?? lineColors[index % lineColors.length],
+          value:
+            path.color ??
+            (isTimestamp && path.expandArrays === true
+              ? undefined
+              : lineColors[index % lineColors.length]),
+          placeholder: "auto",
         },
         lineSize: {
           input: "number",
@@ -62,6 +77,22 @@ const makeSeriesNode = memoizeWeak(
           input: "boolean",
           label: t("showLine"),
           value: path.showLine ?? true,
+        },
+        lineInterpolation: {
+          input: "select",
+          label: t("lineInterpolation"),
+          value: path.lineInterpolation ?? "linear",
+          options: [
+            { label: t("linear"), value: "linear" },
+            { label: t("step"), value: "step" },
+          ],
+        },
+        expandArrays: {
+          input: "boolean",
+          label: t("arraySeries"),
+          value: path.expandArrays ?? false,
+          disabled: !isTimestamp,
+          help: t("arraySeriesHelp"),
         },
         timestampMethod: {
           input: "select",
@@ -77,46 +108,56 @@ const makeSeriesNode = memoizeWeak(
   },
 );
 
-const makeRootSeriesNode = memoizeWeak(({ paths, t }: MakeRootSeriesNode): SettingsTreeNode => {
-  const children = Object.fromEntries(
-    paths.length === 0
-      ? [
-          [
-            "0",
-            makeSeriesNode({
-              canDelete: false,
-              canReorder: false,
-              path: DEFAULT_PLOT_PATH,
-              index: 0,
-              t,
-            }),
-          ],
-        ]
-      : paths.map((path, index) => [
-          `${index}`,
-          makeSeriesNode({ canDelete: true, canReorder: true, index, path, t }),
-        ]),
-  );
-  return {
-    label: t("series"),
-    children,
-    actions: [
-      {
-        type: "action",
-        id: "add-series",
-        display: "inline",
-        icon: "Addchart",
-        label: t("addSeries"),
-      },
-    ],
-  };
-});
+const makeRootSeriesNode = memoizeWeak(
+  ({ paths, isTimestamp, t }: MakeRootSeriesNode): SettingsTreeNode => {
+    const children = Object.fromEntries(
+      paths.length === 0
+        ? [
+            [
+              "0",
+              makeSeriesNode({
+                canDelete: false,
+                canReorder: false,
+                path: DEFAULT_PLOT_PATH,
+                index: 0,
+                isTimestamp,
+                t,
+              }),
+            ],
+          ]
+        : paths.map((path, index) => [
+            `${index}`,
+            makeSeriesNode({ canDelete: true, canReorder: true, index, path, isTimestamp, t }),
+          ]),
+    );
+    return {
+      label: t("series"),
+      children,
+      actions: [
+        {
+          type: "action",
+          id: "add-series",
+          display: "inline",
+          icon: "Addchart",
+          label: t("addSeries"),
+        },
+      ],
+    };
+  },
+);
 
 export function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): SettingsTreeNodes {
   const maxYError =
     _.isNumber(config.minYValue) &&
     _.isNumber(config.maxYValue) &&
     config.minYValue >= config.maxYValue
+      ? t("maxYError")
+      : undefined;
+
+  const maxYRightError =
+    config.minYRightValue != undefined &&
+    config.maxYRightValue != undefined &&
+    config.minYRightValue >= config.maxYRightValue
       ? t("maxYError")
       : undefined;
 
@@ -184,6 +225,36 @@ export function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): Set
         },
       },
     },
+    yRightAxis: {
+      label: t("rightYAxis"),
+      defaultExpansionState: "collapsed",
+      fields: {
+        yRightAxisLabel: {
+          label: t("axisLabel"),
+          input: "string",
+          value: config.yRightAxisLabel,
+          help: t("axisUnitsHelp"),
+        },
+        showYRightAxisLabels: {
+          label: t("showLabels"),
+          input: "boolean",
+          value: config.showYRightAxisLabels ?? true,
+        },
+        minYRightValue: {
+          label: t("min"),
+          input: "number",
+          value: config.minYRightValue,
+          placeholder: "auto",
+        },
+        maxYRightValue: {
+          label: t("max"),
+          input: "number",
+          error: maxYRightError,
+          value: config.maxYRightValue,
+          placeholder: "auto",
+        },
+      },
+    },
     xAxis: {
       label: t("xAxis"),
       defaultExpansionState: "collapsed",
@@ -240,6 +311,10 @@ export function buildSettingsTree(config: PlotConfig, t: TFunction<"plot">): Set
         },
       },
     },
-    paths: makeRootSeriesNode({ paths: config.paths, t }),
+    paths: makeRootSeriesNode({
+      paths: config.paths,
+      isTimestamp: config.xAxisVal === "timestamp",
+      t,
+    }),
   };
 }

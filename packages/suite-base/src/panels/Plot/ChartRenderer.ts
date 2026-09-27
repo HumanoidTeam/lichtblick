@@ -18,7 +18,6 @@ import {
 } from "@lichtblick/suite-base/components/Chart/worker/eventHandler";
 import { DEFAULT_ANNOTATION } from "@lichtblick/suite-base/panels/Plot/constants";
 import { getChartOptions } from "@lichtblick/suite-base/panels/Plot/utils/getChartOptions";
-import { Bounds } from "@lichtblick/suite-base/types/Bounds";
 import { maybeCast } from "@lichtblick/suite-base/util/maybeCast";
 
 import {
@@ -29,6 +28,7 @@ import {
   HoverElement,
   InteractionEvent,
   MutableContext,
+  PlotBounds,
   Scale,
   UpdateAction,
   ZoomableChart,
@@ -89,7 +89,7 @@ export class ChartRenderer {
     this.#chartInstance = chartInstance;
   }
 
-  public update(action: Immutable<UpdateAction>): Bounds | undefined {
+  public update(action: Immutable<UpdateAction>): PlotBounds | undefined {
     if (action.size) {
       this.#chartInstance.canvas.width = action.size.width;
       this.#chartInstance.canvas.height = action.size.height;
@@ -103,6 +103,27 @@ export class ChartRenderer {
       }
       if (scaleOption && scaleOption.max !== action.yBounds.max) {
         scaleOption.max = action.yBounds.max;
+      }
+    }
+
+    const rightScale = this.#chartInstance.options.scales?.yRight;
+    if (rightScale) {
+      if (action.showRightYAxis != undefined) {
+        rightScale.display = action.showRightYAxis;
+      }
+      if (action.yRightBounds) {
+        rightScale.min = action.yRightBounds.min;
+        rightScale.max = action.yRightBounds.max;
+      }
+      if (action.showYRightAxisLabels != undefined && rightScale.ticks) {
+        rightScale.ticks.display = action.showYRightAxisLabels;
+      }
+      if (action.yRightAxisLabel != undefined) {
+        rightScale.title = {
+          display: action.yRightAxisLabel.length > 0,
+          text: action.yRightAxisLabel,
+          color: this.#titleColor,
+        };
       }
     }
 
@@ -172,6 +193,7 @@ export class ChartRenderer {
       const newAnnotations: AnnotationOptions[] = action.referenceLines.map((config) => {
         return {
           ...DEFAULT_ANNOTATION,
+          scaleID: config.yAxisID ?? "y",
           borderColor: config.color,
           value: config.value,
         };
@@ -184,9 +206,10 @@ export class ChartRenderer {
     // the entire data set which does not preserve history for the chart animations
     this.#chartInstance.update("none");
 
-    // fill our rpc scales - we only support x and y scales for now
+    // Return each active scale so downsampling uses the same domain after pan/zoom.
     const xScale = this.#chartInstance.scales.x;
     const yScale = this.#chartInstance.scales.y;
+    const yRightScale = this.#chartInstance.scales.yRight;
 
     if (!xScale || !yScale) {
       return undefined;
@@ -201,6 +224,9 @@ export class ChartRenderer {
         min: yScale.min,
         max: yScale.max,
       },
+      ...(rightScale?.display === true && yRightScale
+        ? { yRight: { min: yRightScale.min, max: yRightScale.max } }
+        : {}),
     };
   }
 

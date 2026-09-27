@@ -129,6 +129,8 @@ describe("Plot Component", () => {
   beforeEach(() => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     mockCoordinatorInstance = {
+      on: jest.fn(),
+      off: jest.fn(),
       handleConfig: jest.fn(),
       handlePlayerState: jest.fn(),
       setShouldSync: jest.fn(),
@@ -233,6 +235,32 @@ describe("Plot Component", () => {
     // Then
     expect(mockLatestLegendProps?.hoveredValuesBySeriesIndex).toEqual([5, 10]);
     expect(mockLatestLegendProps?.showValues).toBe(true);
+  });
+
+  it("highlights the nearest hover candidate independently of displayed legend values and clears on leave", async () => {
+    const config = new PlotConfigBuilder()
+      .withPaths([
+        { value: "/first", enabled: true, timestampMethod: "receiveTime" },
+        { value: "/second", enabled: true, timestampMethod: "receiveTime" },
+      ])
+      .build();
+    renderPlot({ ...config, showPlotValuesInLegend: false });
+    await act(async () =>
+      mockLatestSetActiveTooltip?.({
+        x: 10,
+        y: 10,
+        data: [
+          { configIndex: 1, value: 70 },
+          { configIndex: 0, value: 20 },
+        ],
+      }),
+    );
+    expect(mockLatestLegendProps?.highlightedSeriesIndex).toBe(1);
+    expect(mockLatestLegendProps?.hoveredValuesBySeriesIndex).toBeUndefined();
+    expect(screen.getByText("second").getAttribute("data-highlighted")).toBe("true");
+    expect(screen.getByText("first").getAttribute("data-highlighted")).toBeNull();
+    await act(async () => mockLatestSetActiveTooltip?.(undefined));
+    expect(mockLatestLegendProps?.highlightedSeriesIndex).toBeUndefined();
   });
 
   it("Given legendDisplay none When rendering Then legend is hidden", () => {

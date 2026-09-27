@@ -149,6 +149,8 @@ export class CustomDatasetsBuilderImpl {
           });
         }
       } else {
+        const viewportY =
+          series.config.yAxisID === "yRight" ? viewport.bounds.yRight : viewport.bounds.y;
         const downsampleViewport = {
           width: viewport.size.width,
           height: viewport.size.height,
@@ -158,8 +160,8 @@ export class CustomDatasetsBuilderImpl {
               max: viewport.bounds.x?.max ?? xBounds.max,
             },
             y: {
-              min: viewport.bounds.y?.min ?? yBounds.min,
-              max: viewport.bounds.y?.max ?? yBounds.max,
+              min: viewportY?.min ?? yBounds.min,
+              max: viewportY?.max ?? yBounds.max,
             },
           },
         };

@@ -56,6 +56,19 @@ export const getChartOptions = ({
         precision: 3,
       },
     },
+    yRight: {
+      type: "linear",
+      axis: "y",
+      position: "right",
+      display: false,
+      grid: { drawOnChartArea: false, color: gridColor },
+      ticks: {
+        font: { family: fontMonospace, size: 10 },
+        color: tickColor,
+        padding: 0,
+        precision: 3,
+      },
+    },
   },
   plugins: {
     decimation: {

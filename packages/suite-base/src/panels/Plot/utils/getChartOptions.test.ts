@@ -21,6 +21,8 @@ describe("getChartOptions", () => {
       titleColor: mockTitleColor,
     });
 
+    // Unassigned legacy datasets must still find the left scale first.
+    expect(Object.keys(options.scales ?? {})).toEqual(["x", "y", "yRight"]);
     expect(options).toEqual<ChartOptions<"scatter">>({
       maintainAspectRatio: false,
       animation: false,
@@ -62,6 +64,19 @@ describe("getChartOptions", () => {
               family: fontMonospace,
               size: 10,
             },
+            color: mockTickColor,
+            padding: 0,
+            precision: 3,
+          },
+        },
+        yRight: {
+          type: "linear",
+          axis: "y",
+          position: "right",
+          display: false,
+          grid: { drawOnChartArea: false, color: mockGridColor },
+          ticks: {
+            font: { family: fontMonospace, size: 10 },
             color: mockTickColor,
             padding: 0,
             precision: 3,

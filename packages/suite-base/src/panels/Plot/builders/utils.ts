@@ -29,6 +29,8 @@ export function buildDatasetStyle(config: Immutable<SeriesItem>): Omit<Dataset, 
   return {
     borderColor: color,
     showLine,
+    stepped: config.lineInterpolation === "step" ? "before" : undefined,
+    yAxisID: config.yAxisID,
     fill: false,
     borderWidth: lineSize,
     pointRadius: lineSize * 1.2,
@@ -42,8 +44,8 @@ export function buildDatasetStyle(config: Immutable<SeriesItem>): Omit<Dataset, 
  * Series entry shared by builders that accumulate both a "full" (preloaded) and "current"
  * (unpreloaded) buffer of items. Used by CustomDatasetsBuilderImpl and TimestampDatasetsBuilderImpl.
  */
-type FullAndCurrentSeries<TItem> = {
-  config: Immutable<SeriesItem>;
+type FullAndCurrentSeries<TItem, TConfig extends SeriesItem = SeriesItem> = {
+  config: Immutable<TConfig>;
   current: TItem[];
   full: TItem[];
 };
@@ -52,11 +54,11 @@ type FullAndCurrentSeries<TItem> = {
  * Rebuilds a series map from a new config array, preserving each series' existing current/full
  * buffers for matching keys.
  */
-export function updateSeriesConfig<TItem>(
-  existing: ReadonlyMap<SeriesConfigKey, FullAndCurrentSeries<TItem>>,
-  series: Immutable<SeriesItem[]>,
-): Map<SeriesConfigKey, FullAndCurrentSeries<TItem>> {
-  const newSeries = new Map<SeriesConfigKey, FullAndCurrentSeries<TItem>>();
+export function updateSeriesConfig<TItem, TConfig extends SeriesItem = SeriesItem>(
+  existing: ReadonlyMap<SeriesConfigKey, FullAndCurrentSeries<TItem, TConfig>>,
+  series: Immutable<TConfig[]>,
+): Map<SeriesConfigKey, FullAndCurrentSeries<TItem, TConfig>> {
+  const newSeries = new Map<SeriesConfigKey, FullAndCurrentSeries<TItem, TConfig>>();
 
   for (const config of series) {
     let existingSeries = existing.get(config.key);

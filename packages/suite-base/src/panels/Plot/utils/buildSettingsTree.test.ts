@@ -18,6 +18,73 @@ describe("buildSettingsTree", () => {
 
   beforeEach(() => {});
 
+  it("shows an automatic indexed palette, not a misleading scalar color", () => {
+    const path = PlotBuilder.path({
+      value: "/sample.values[2:4]",
+      expandArrays: true,
+      color: undefined,
+    });
+    const tree = buildSettingsTree(PlotBuilder.config({ paths: [path], xAxisVal: "timestamp" }), t);
+    expect(tree.paths?.children?.["0"]?.fields?.color).toMatchObject({
+      value: undefined,
+      placeholder: "auto",
+    });
+    expect(tree.paths?.children?.["0"]?.fields?.expandArrays).toMatchObject({
+      value: true,
+      disabled: false,
+    });
+    const explicit = buildSettingsTree(
+      PlotBuilder.config({ paths: [{ ...path, color: "purple" }], xAxisVal: "timestamp" }),
+      t,
+    );
+    expect(explicit.paths?.children?.["0"]?.fields?.color?.value).toBe("purple");
+  });
+
+  it.each(["index", "custom", "currentCustom"] as const)(
+    "disables timestamp array expansion in %s mode without clearing the saved opt-in",
+    (xAxisVal) => {
+      const tree = buildSettingsTree(
+        PlotBuilder.config({
+          paths: [PlotBuilder.path({ expandArrays: true, color: undefined })],
+          xAxisVal,
+        }),
+        t,
+      );
+      expect(tree.paths?.children?.["0"]?.fields?.expandArrays).toMatchObject({
+        value: true,
+        disabled: true,
+      });
+      expect(tree.paths?.children?.["0"]?.fields?.color?.value).toBe(lineColors[0]);
+    },
+  );
+
+  it("offers default-left and saved-right assignment with independent unit labels and bounds", () => {
+    const config = PlotBuilder.config({
+      paths: [PlotBuilder.path(), PlotBuilder.path({ yAxis: "right" })],
+      yAxisLabel: "Position (m)",
+      yRightAxisLabel: "Pressure (Pa)",
+      minYRightValue: 1000,
+      maxYRightValue: 2000,
+      showYRightAxisLabels: false,
+    });
+    const tree = buildSettingsTree(config, t);
+    expect(tree.paths?.children?.["0"]?.fields?.yAxis?.value).toBe("left");
+    expect(tree.paths?.children?.["1"]?.fields?.yAxis?.value).toBe("right");
+    expect(tree.yAxis?.fields?.yAxisLabel?.value).toBe("Position (m)");
+    expect(tree.yRightAxis?.fields?.yRightAxisLabel?.value).toBe("Pressure (Pa)");
+    expect(tree.yRightAxis?.fields?.minYRightValue?.value).toBe(1000);
+    expect(tree.yRightAxis?.fields?.maxYRightValue?.value).toBe(2000);
+    expect(tree.yRightAxis?.fields?.showYRightAxisLabels?.value).toBe(false);
+  });
+
+  it("validates right bounds independently and defaults right tick labels on", () => {
+    const config = PlotBuilder.config({ minYRightValue: 5, maxYRightValue: 5 });
+    const tree = buildSettingsTree(config, t);
+    expect(tree.yRightAxis?.fields?.maxYRightValue?.error).toBe("maxYError");
+    expect(tree.yRightAxis?.fields?.showYRightAxisLabels?.value).toBe(true);
+    expect(config.showYRightAxisLabels).toBeUndefined();
+  });
+
   it("should build the settings tree", () => {
     const paths = [
       PlotBuilder.path({
@@ -90,6 +157,23 @@ describe("buildSettingsTree", () => {
       expect.objectContaining({ value: lineColors[1 % lineColors.length] }),
     );
   });
+
+  it.each([undefined, "linear", "step"] as const)(
+    "exposes the saved interpolation %s with a backward-compatible linear default",
+    (lineInterpolation) => {
+      const path = { ...PlotBuilder.path(), lineInterpolation };
+      const tree = buildSettingsTree(PlotBuilder.config({ paths: [path] }), t);
+      expect(tree.paths?.children?.["0"]?.fields?.lineInterpolation).toEqual({
+        input: "select",
+        label: "lineInterpolation",
+        value: lineInterpolation ?? "linear",
+        options: [
+          { label: "linear", value: "linear" },
+          { label: "step", value: "step" },
+        ],
+      });
+    },
+  );
 
   it("should add a default plot path in the node when no paths", () => {
     const config: PlotConfig = PlotBuilder.config({ paths: [] });

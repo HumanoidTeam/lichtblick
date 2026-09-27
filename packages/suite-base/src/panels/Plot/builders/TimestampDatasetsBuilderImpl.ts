@@ -5,6 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { compare as compareTimes } from "@lichtblick/rostime";
 import { Immutable, Time } from "@lichtblick/suite";
 import {
   MAX_POINTS,
@@ -14,7 +15,8 @@ import {
 import { Bounds1D } from "@lichtblick/suite-base/components/TimeBasedChart/types";
 import { extendBounds1D } from "@lichtblick/suite-base/types/Bounds";
 
-import { CsvDataset, SeriesConfigKey, SeriesItem, Viewport } from "./IDatasetsBuilder";
+import { CsvDataset, SeriesConfigKey, Viewport } from "./IDatasetsBuilder";
+import { TimestampSeriesConfig } from "./arraySeries";
 import { MAX_CURRENT_DATUMS_PER_SERIES, buildDatasetStyle, updateSeriesConfig } from "./utils";
 import { Dataset } from "../types";
 import { Datum } from "../utils/datum";
@@ -31,7 +33,7 @@ type FullDatum = Datum & {
 };
 
 type Series = {
-  config: Immutable<SeriesItem>;
+  config: Immutable<TimestampSeriesConfig>;
   current: FullDatum[];
   full: FullDatum[];
 };
@@ -60,7 +62,7 @@ type UpdateSeriesFullAction = {
 
 type UpdateSeriesConfigAction = {
   type: "update-series-config";
-  seriesItems: SeriesItem[];
+  seriesItems: TimestampSeriesConfig[];
 };
 
 export type UpdateDataAction =
@@ -90,13 +92,40 @@ function getDerivativeY(
   return (item.y - prevY) / (item.x - prevX);
 }
 
+/** Keep missing observations and the preload/current boundary disconnected, including derivatives. */
+function* observedSegments(sources: Iterable<Series>): Generator<Series> {
+  for (const series of sources) {
+    if (series.config.arrayIndex == undefined) {
+      yield series;
+      continue;
+    }
+    for (const data of [series.full, series.current]) {
+      let segment: FullDatum[] = [];
+      for (let index = 0; index <= data.length; ++index) {
+        const item = data[index];
+        if (item && Number.isFinite(item.x) && Number.isFinite(item.y)) {
+          segment.push(item);
+          continue;
+        }
+        if (segment.length > 0) {
+          if (series.config.timestampMethod === "headerStamp") {
+            segment.sort(compareDatum);
+          }
+          yield { config: series.config, full: segment, current: [] };
+          segment = [];
+        }
+      }
+    }
+  }
+}
+
 export class TimestampDatasetsBuilderImpl {
   #seriesByKey = new Map<SeriesConfigKey, Series>();
 
   public getViewportDatasets(viewport: Immutable<Viewport>): Dataset[] {
     const datasets: Dataset[] = [];
     const numSeries = this.#seriesByKey.size;
-    for (const series of this.#seriesByKey.values()) {
+    for (const series of observedSegments(this.#seriesByKey.values())) {
       if (!series.config.enabled) {
         continue;
       }
@@ -105,6 +134,7 @@ export class TimestampDatasetsBuilderImpl {
         data: [],
       };
 
+      const previousDataset = datasets[series.config.configIndex];
       datasets[series.config.configIndex] = dataset;
 
       // Copy so we can set the .index property for downsampling
@@ -152,6 +182,8 @@ export class TimestampDatasetsBuilderImpl {
 
       const items = allData.slice(startIdx, endIdx + 1);
 
+      const viewportY =
+        series.config.yAxisID === "yRight" ? viewport.bounds.yRight : viewport.bounds.y;
       const downsampleViewport = {
         width: viewport.size.width,
         height: viewport.size.height,
@@ -161,8 +193,8 @@ export class TimestampDatasetsBuilderImpl {
             max: viewport.bounds.x?.max ?? xBounds.max,
           },
           y: {
-            min: viewport.bounds.y?.min ?? yBounds.min,
-            max: viewport.bounds.y?.max ?? yBounds.max,
+            min: viewportY?.min ?? yBounds.min,
+            max: viewportY?.max ?? yBounds.max,
           },
         },
       };
@@ -233,6 +265,16 @@ export class TimestampDatasetsBuilderImpl {
           value: item.value,
         });
       }
+      if (previousDataset) {
+        previousDataset.data.push({ x: NaN, y: NaN, value: NaN });
+        for (const point of dataset.data) {
+          previousDataset.data.push(point);
+        }
+        if (dataset.pointRadius === 0) {
+          previousDataset.pointRadius = 0;
+        }
+        datasets[series.config.configIndex] = previousDataset;
+      }
     }
 
     return datasets;
@@ -242,6 +284,11 @@ export class TimestampDatasetsBuilderImpl {
     const datasets: CsvDataset[] = [];
     for (const series of this.#seriesByKey.values()) {
       if (!series.config.enabled) {
+        continue;
+      }
+      if (series.config.arrayIndex != undefined) {
+        const data = [...observedSegments([series])].flatMap((segment) => segment.full);
+        datasets.push({ label: series.config.messagePath, data });
         continue;
       }
 
@@ -255,12 +302,13 @@ export class TimestampDatasetsBuilderImpl {
   }
 
   #getData(series: Series): IndexedDatum[] {
-    const allData: IndexedDatum[] = series.full.slice();
-    allData.push(...series.current);
-
     if (series.config.parsed.modifier !== "derivative") {
-      return allData;
+      // Only derivatives replace datums. Reuse fully preloaded data rather than copying the
+      // entire recording on every viewport update; merging current data still needs a copy.
+      return series.current.length === 0 ? series.full : series.full.concat(series.current);
     }
+
+    const allData: IndexedDatum[] = series.full.concat(series.current);
 
     let prevX: number | undefined;
     let prevY: number | undefined;
@@ -335,12 +383,17 @@ export class TimestampDatasetsBuilderImpl {
         }
 
         const sorted =
-          series.config.timestampMethod === "headerStamp"
+          series.config.arrayIndex == undefined && series.config.timestampMethod === "headerStamp"
             ? action.items.slice().sort(compareDatum)
             : action.items;
 
         for (const item of sorted) {
-          if (lastX != undefined && item.x <= lastX) {
+          const lastFull = series.full.at(-1);
+          const overlapsFull =
+            series.config.arrayIndex != undefined
+              ? lastFull != undefined && compareTimes(item.receiveTime, lastFull.receiveTime) <= 0
+              : lastX != undefined && item.x <= lastX;
+          if (overlapsFull) {
             continue;
           }
 
@@ -355,7 +408,10 @@ export class TimestampDatasetsBuilderImpl {
           });
         }
 
-        if (series.config.timestampMethod === "headerStamp") {
+        if (
+          series.config.arrayIndex == undefined &&
+          series.config.timestampMethod === "headerStamp"
+        ) {
           series.current.sort(compareDatum);
         }
         break;
@@ -378,8 +434,20 @@ export class TimestampDatasetsBuilderImpl {
           });
         }
 
-        if (series.config.timestampMethod === "headerStamp") {
+        if (
+          series.config.arrayIndex == undefined &&
+          series.config.timestampMethod === "headerStamp"
+        ) {
           series.full.sort(compareDatum);
+        }
+        if (series.config.arrayIndex != undefined) {
+          const lastFull = series.full.at(-1);
+          if (lastFull) {
+            series.current = series.current.filter(
+              (item) => compareTimes(item.receiveTime, lastFull.receiveTime) > 0,
+            );
+          }
+          break;
         }
 
         // trim current data to remove values present in the full data
@@ -405,7 +473,7 @@ export class TimestampDatasetsBuilderImpl {
     }
   }
 
-  #updateSeriesConfigAction(series: Immutable<SeriesItem[]>): void {
+  #updateSeriesConfigAction(series: Immutable<TimestampSeriesConfig[]>): void {
     this.#seriesByKey = updateSeriesConfig(this.#seriesByKey, series);
   }
 }

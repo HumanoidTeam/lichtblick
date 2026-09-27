@@ -20,7 +20,6 @@ import { UseSubscribeMessageRange } from "@lichtblick/suite-base/components/Pane
 import { Bounds1D } from "@lichtblick/suite-base/components/TimeBasedChart/types";
 import { GlobalVariables } from "@lichtblick/suite-base/hooks/useGlobalVariables";
 import { PlayerState, Topic } from "@lichtblick/suite-base/players/types";
-import { Bounds } from "@lichtblick/suite-base/types/Bounds";
 import { getContrastColor, getLineColor } from "@lichtblick/suite-base/util/plotColors";
 
 import { OffscreenCanvasRenderer } from "./OffscreenCanvasRenderer";
@@ -31,10 +30,13 @@ import {
   SeriesItem,
   Viewport,
 } from "./builders/IDatasetsBuilder";
+import { readArrayValues } from "./builders/arraySeries";
 import {
   ConfigBounds,
   Dataset,
   InteractionEvent,
+  PlotArraySeries,
+  PlotBounds,
   PlotCoordinatorEventTypes,
   Scale,
   UpdateAction,
@@ -56,10 +58,14 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
   private globalBounds?: Immutable<Partial<Bounds1D>>;
   private datasetRange?: Bounds1D;
   private followRange?: number;
-  private interactionBounds?: Bounds;
+  private interactionBounds?: PlotBounds;
+  private rightAxisPaths: number[] = [];
   private lastSeekTime = NaN;
   /** Normalized series from latest config */
   private series: Immutable<SeriesItem[]> = [];
+  private configPathCount = 0;
+  private configRevision = 0;
+  private arraySeries: PlotArraySeries[] = [];
   /** Current value for each series to show in the legend */
   private currentValuesByConfigIndex: unknown[] = [];
   /** Flag indicating that new Y bounds should be sent to the renderer because the bounds have been reset */
@@ -174,6 +180,13 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
         if (msgEvent.topic !== seriesItem.parsed.topicName) {
           continue;
         }
+        if (seriesItem.expandArrays === true) {
+          this.currentValuesByConfigIndex[seriesItem.configIndex] = readArrayValues(
+            msgEvent,
+            seriesItem.parsed,
+          );
+          break;
+        }
         const items = simpleGetMessagePathDataItems(msgEvent, seriesItem.parsed);
         if (items.length > 0) {
           this.currentValuesByConfigIndex[seriesItem.configIndex] = items[items.length - 1];
@@ -214,11 +227,23 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
     if (this.isDestroyed()) {
       return;
     }
+    this.configPathCount = config.paths.length;
+    ++this.configRevision;
     this.isTimeseriesPlot = config.xAxisVal === "timestamp";
     if (!this.isTimeseriesPlot) {
       this.currentSeconds = undefined;
     }
     this.followRange = config.followingViewWidth;
+
+    const rightAxisPaths = filterMap(config.paths, (path, index) =>
+      path.yAxis === "right" ? index : undefined,
+    );
+    if (!_.isEqual(this.rightAxisPaths, rightAxisPaths)) {
+      // Reassignment changes the domains: reset the local view, not synchronized X bounds.
+      this.rightAxisPaths = rightAxisPaths;
+      this.interactionBounds = undefined;
+      this.shouldResetY = true;
+    }
 
     const newConfigBounds = {
       x: {
@@ -229,10 +254,15 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
         max: config.maxYValue == undefined ? undefined : +config.maxYValue,
         min: config.minYValue == undefined ? undefined : +config.minYValue,
       },
+      yRight:
+        config.minYRightValue != undefined || config.maxYRightValue != undefined
+          ? { min: config.minYRightValue, max: config.maxYRightValue }
+          : undefined,
     };
     const configYBoundsChanged =
       this.configBounds.y.min !== newConfigBounds.y.min ||
       this.configBounds.y.max !== newConfigBounds.y.max;
+    const configRightYBoundsChanged = !_.isEqual(this.configBounds.yRight, newConfigBounds.yRight);
     this.configBounds = newConfigBounds;
 
     const referenceLines = filterMap(config.paths, (path, idx) => {
@@ -248,6 +278,7 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
       return {
         color: getLineColor(path.color, idx),
         value,
+        yAxisID: path.yAxis === "right" ? ("yRight" as const) : undefined,
       };
     });
 
@@ -255,7 +286,19 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
     this.updateAction.showYAxisLabels = config.showYAxisLabels;
     this.updateAction.xAxisLabel = config.xAxisLabel;
     this.updateAction.yAxisLabel = config.yAxisLabel;
+    this.updateAction.yRightAxisLabel = config.yRightAxisLabel ?? "";
+    this.updateAction.showYRightAxisLabels = config.showYRightAxisLabels ?? true;
+    this.updateAction.showRightYAxis = config.paths.some(
+      (path) => path.enabled && path.yAxis === "right",
+    );
     this.updateAction.referenceLines = referenceLines;
+
+    if (configRightYBoundsChanged) {
+      this.updateAction.yRightBounds = this.configBounds.yRight ?? {};
+      if (this.interactionBounds) {
+        this.interactionBounds = { ...this.interactionBounds, yRight: undefined };
+      }
+    }
 
     if (configYBoundsChanged) {
       // Config changes to yBounds always takes precedence over user interaction changes like pan/zoom
@@ -285,9 +328,10 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
       //
       // This key lets us treat series with the same name but different timestamp methods as distinct
       // using a key instead of the path index lets us preserve loaded data when a path is removed
+      const expandArrays = this.isTimeseriesPlot && path.expandArrays === true;
       const key = `${idx}:${path.timestampMethod}:${stringifyMessagePath(
         filledParsed,
-      )}` as SeriesConfigKey;
+      )}${expandArrays ? ":array-series" : ""}` as SeriesConfigKey;
 
       // Keep current values for paths that match existing ones
       const existingSeries = this.series.find((series) => series.key === key);
@@ -314,7 +358,10 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
         lineSize: path.lineSize ?? 1.0,
         timestampMethod: path.timestampMethod,
         showLine: path.showLine ?? true,
+        lineInterpolation: path.lineInterpolation,
+        yAxisID: path.yAxis === "right" ? "yRight" : undefined,
         enabled: path.enabled,
+        ...(expandArrays ? { expandArrays: true, arrayColor: path.color, colorScheme } : {}),
       };
     });
 
@@ -446,6 +493,7 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
       const yMin = this.interactionBounds?.y.min ?? this.configBounds.y.min;
       const yMax = this.interactionBounds?.y.max ?? this.configBounds.y.max;
       this.updateAction.yBounds = { min: yMin, max: yMax };
+      this.updateAction.yRightBounds = this.configBounds.yRight ?? {};
       this.shouldResetY = false;
     }
 
@@ -472,9 +520,15 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
     // The viewport has changed from some render interactions so we need to consider new datasets
     const x = this.getXBounds();
     const y = this.interactionBounds?.y ?? this.configBounds.y;
-    if (!_.isEqual(this.viewport.bounds.x, x) || !_.isEqual(this.viewport.bounds.y, y)) {
+    const yRight = this.interactionBounds?.yRight ?? this.configBounds.yRight;
+    if (
+      !_.isEqual(this.viewport.bounds.x, x) ||
+      !_.isEqual(this.viewport.bounds.y, y) ||
+      !_.isEqual(this.viewport.bounds.yRight, yRight)
+    ) {
       this.viewport.bounds.x = x;
       this.viewport.bounds.y = y;
+      this.viewport.bounds.yRight = yRight;
       this.queueDispatchDownsample();
     }
   }
@@ -485,8 +539,9 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
       return;
     }
 
+    const revision = this.configRevision;
     const result = await this.datasetsBuilder.getViewportDatasets(this.viewport);
-    if (this.isDestroyed()) {
+    if (this.isDestroyed() || revision !== this.configRevision) {
       return;
     }
     this.emit("pathsWithMismatchedDataLengthsChanged", [...result.pathsWithMismatchedDataLengths]);
@@ -494,6 +549,21 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
     // Use Array.from to fill in any `undefined` entries with an empty dataset (`map` would not
     // work for sparse arrays)
     const datasets = Array.from(result.datasetsByConfigIndex, replaceUndefinedWithEmptyDataset);
+    const arraySeries: PlotArraySeries[] = [];
+    if (result.arrayDatasets) {
+      while (datasets.length < this.configPathCount) {
+        datasets.push({ data: [] });
+      }
+      for (const { dataset, ...item } of result.arrayDatasets) {
+        arraySeries.push({ ...item, datasetIndex: datasets.length });
+        datasets.push(dataset);
+      }
+    }
+    if (!_.isEqual(this.arraySeries, arraySeries)) {
+      this.arraySeries = arraySeries;
+      this.emit("arraySeriesChanged", arraySeries);
+    }
+    this.emit("pathsWithInvalidArraysChanged", [...(result.pathsWithInvalidArrays ?? [])]);
     this.queueDatasetsRender(datasets);
   }
 

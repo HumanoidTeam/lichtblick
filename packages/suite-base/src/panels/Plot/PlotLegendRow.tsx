@@ -29,6 +29,9 @@ import { PlotPath, plotPathDisplayName } from "./utils/config";
 
 type PlotLegendRowProps = Immutable<{
   hasMismatchedDataLength: boolean;
+  hasInvalidArray?: boolean;
+  isArrayRow?: boolean;
+  highlighted?: boolean;
   index: number;
   onClickPath: () => void;
   path: PlotPath;
@@ -60,6 +63,10 @@ const useStyles = makeStyles<void, "plotName" | "actionButton">()((theme, _param
         opacity: 0,
       },
     },
+  },
+  highlighted: {
+    "& > *": { backgroundColor: theme.palette.action.selected },
+    "& .MuiTypography-root": { fontWeight: theme.typography.fontWeightBold },
   },
   showPlotValue: {
     [`.${classes.plotName}`]: {
@@ -150,6 +157,9 @@ function renderValue(value: unknown): string | number | undefined {
 
 export function PlotLegendRow({
   hasMismatchedDataLength,
+  hasInvalidArray = false,
+  isArrayRow = false,
+  highlighted = false,
   index,
   onClickPath,
   path,
@@ -187,7 +197,9 @@ export function PlotLegendRow({
     <div
       className={cx(classes.root, {
         [classes.showPlotValue]: showPlotValuesInLegend,
+        [classes.highlighted]: highlighted,
       })}
+      data-highlighted={highlighted || undefined}
       onClick={() => {
         setSelectedPanelIds([panelId]);
         openPanelSettings();
@@ -199,7 +211,7 @@ export function PlotLegendRow({
           className={classes.checkbox}
           checked={path.enabled}
           size="small"
-          title="Toggle visibility"
+          title={isArrayRow ? "Toggle array series (all indices)" : "Toggle visibility"}
           style={{ color: getLineColor(path.color, index) }}
           icon={<Square12Regular />}
           checkedIcon={<Square12Filled />}
@@ -230,10 +242,14 @@ export function PlotLegendRow({
         >
           {isAddSeriesRow ? t("clickToAddASeries") : plotPathDisplayName(path, index)}
         </Typography>
-        {hasMismatchedDataLength && (
+        {(hasMismatchedDataLength || hasInvalidArray) && (
           <Tooltip
             placement="top"
-            title="Mismatch in the number of elements in x-axis and y-axis messages"
+            title={
+              hasInvalidArray
+                ? "Array series require a terminal non-negative numeric-array slice, with named fields before it. Objects, filters and nested arrays are unsupported."
+                : "Mismatch in the number of elements in x-axis and y-axis messages"
+            }
           >
             <ErrorCircle16Filled className={classes.errorIcon} />
           </Tooltip>
@@ -262,8 +278,8 @@ export function PlotLegendRow({
           </ButtonBase>
         ) : (
           <ButtonBase
-            title="Delete series"
-            aria-label="Delete series"
+            title={isArrayRow ? "Delete array series (all indices)" : "Delete series"}
+            aria-label={isArrayRow ? "Delete array series (all indices)" : "Delete series"}
             onClick={handleDeletePath}
             data-testid="delete-series"
           >

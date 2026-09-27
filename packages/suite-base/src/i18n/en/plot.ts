@@ -8,7 +8,11 @@
 export const plot = {
   accumulatedPath: "Path (accumulated)",
   addSeries: "Add series",
+  arraySeries: "Array series",
+  arraySeriesHelp:
+    "Timestamp X only: split a terminal numeric-array slice into source-index series. Use non-negative indices and named fields before the slice. Missing values break lines. All children share settings; an explicit color overrides the indexed palette.",
   axisLabel: "Axis label",
+  axisUnitsHelp: "Optional unit label, such as Pressure (Pa). Values are not converted.",
   clickToAddASeries: "Click to add a series",
   color: "Color",
   currentPath: "Path (current)",
@@ -21,6 +25,9 @@ export const plot = {
   label: "Label",
   left: "Left",
   legend: "Legend",
+  lineInterpolation: "Line interpolation",
+  linear: "Linear",
+  step: "Step",
   lineSize: "Line size",
   max: "Max",
   maxXError: "X max must be greater than X min.",
@@ -33,6 +40,8 @@ export const plot = {
   receiveTime: "Receive Time",
   reorderSeries: "Reorder series",
   resetView: "Reset view",
+  right: "Right",
+  rightYAxis: "Right Y axis",
   secondsRange: "Range (seconds)",
   series: "Series",
   showLabels: "Show labels",
@@ -44,4 +53,6 @@ export const plot = {
   value: "Value",
   xAxis: "X Axis",
   yAxis: "Y Axis",
+  yAxisHelp:
+    "Assign a separate scale. Changing assignment resets the local view; values and CSV are unchanged.",
 };

@@ -15,7 +15,7 @@ import { CustomDatasetsBuilder } from "@lichtblick/suite-base/panels/Plot/builde
 import { IndexDatasetsBuilder } from "@lichtblick/suite-base/panels/Plot/builders/IndexDatasetsBuilder";
 import { TimestampDatasetsBuilder } from "@lichtblick/suite-base/panels/Plot/builders/TimestampDatasetsBuilder";
 import { PlotConfig, PlotPath } from "@lichtblick/suite-base/panels/Plot/utils/config";
-import { Bounds1D } from "@lichtblick/suite-base/types/Bounds";
+import { Bounds, Bounds1D } from "@lichtblick/suite-base/types/Bounds";
 import { SaveConfig } from "@lichtblick/suite-base/types/panels";
 
 import { OriginalValue } from "./utils/datum";
@@ -68,7 +68,10 @@ export type HoverElement = {
 
 export type Size = { width: number; height: number };
 
-export type ReferenceLine = { color: string; value: number };
+export type ReferenceLine = { color: string; value: number; yAxisID?: "yRight" };
+
+/** Plot-only extension; other TimeBasedChart consumers keep their existing bounds contract. */
+export type PlotBounds = Bounds & { yRight?: Bounds1D };
 
 export type UpdateAction = {
   type: "update";
@@ -77,8 +80,12 @@ export type UpdateAction = {
   showYAxisLabels?: boolean;
   xAxisLabel?: string;
   yAxisLabel?: string;
+  yRightAxisLabel?: string;
+  showRightYAxis?: boolean;
+  showYRightAxisLabels?: boolean;
   xBounds?: Partial<Bounds1D>;
   yBounds?: Partial<Bounds1D>;
+  yRightBounds?: Partial<Bounds1D>;
   zoomMode?: "x" | "y" | "xy";
   referenceLines?: ReferenceLine[];
   interactionEvents?: InteractionEvent[];
@@ -172,6 +179,8 @@ export type UsePlotDataHandling = {
 
 export type UsePlotInteractionHandlersProps = {
   config: PlotConfig;
+  /** Generated renderer identities can change without a saved config change. */
+  arraySeries?: Immutable<PlotArraySeries[]>;
   coordinator: PlotCoordinator | undefined;
   draggingRef: MutableRefObject<boolean>;
   renderer: OffscreenCanvasRenderer | undefined;
@@ -180,7 +189,17 @@ export type UsePlotInteractionHandlersProps = {
   subscriberId: string;
 };
 
+export type PlotArraySeries = {
+  configIndex: number;
+  arrayIndex: number;
+  datasetIndex: number;
+  messagePath: string;
+  color: string;
+};
+
 export type PlotCoordinatorEventTypes = {
+  arraySeriesChanged(series: PlotArraySeries[]): void;
+  pathsWithInvalidArraysChanged(paths: string[]): void;
   timeseriesBounds(bounds: Immutable<Bounds1D>): void;
 
   /** X scale changed. */
@@ -196,7 +215,11 @@ export type PlotCoordinatorEventTypes = {
   viewportChange(canReset: boolean): void;
 };
 
-export type ConfigBounds = { x: Partial<Bounds1D>; y: Partial<Bounds1D> };
+export type ConfigBounds = {
+  x: Partial<Bounds1D>;
+  y: Partial<Bounds1D>;
+  yRight?: Partial<Bounds1D>;
+};
 
 export type HandleAction = {
   draft: PlotConfig;
@@ -213,11 +236,13 @@ export type MakeSeriesNode = {
   index: number;
   canDelete: boolean;
   canReorder: boolean;
+  isTimestamp: boolean;
   t: TFunction<"plot">;
 };
 
 export type MakeRootSeriesNode = {
   paths: PlotPath[];
+  isTimestamp: boolean;
   t: TFunction<"plot">;
 };
 

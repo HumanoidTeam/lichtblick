@@ -28,7 +28,11 @@ import useGlobalVariables from "@lichtblick/suite-base/hooks/useGlobalVariables"
 import { VerticalBars } from "@lichtblick/suite-base/panels/Plot/VerticalBars";
 import usePanning from "@lichtblick/suite-base/panels/Plot/hooks/usePanning";
 import usePlotInteractionHandlers from "@lichtblick/suite-base/panels/Plot/hooks/usePlotInteractionHandlers";
-import { PlotProps, TooltipStateSetter } from "@lichtblick/suite-base/panels/Plot/types";
+import {
+  PlotArraySeries,
+  PlotProps,
+  TooltipStateSetter,
+} from "@lichtblick/suite-base/panels/Plot/types";
 
 import { useStyles } from "./Plot.style";
 import { PlotCoordinator } from "./PlotCoordinator";
@@ -60,6 +64,7 @@ const Plot = (props: PlotProps): React.JSX.Element => {
   const [canReset, setCanReset] = useState(false);
 
   const [activeTooltip, setActiveTooltip] = useState<TooltipStateSetter>();
+  const [arraySeries, setArraySeries] = useState<PlotArraySeries[]>([]);
 
   const [subscriberId] = useState(() => uuidv4());
   const [canvasDiv, setCanvasDiv] = useState<HTMLDivElement | ReactNull>(ReactNull);
@@ -84,6 +89,7 @@ const Plot = (props: PlotProps): React.JSX.Element => {
     getPanelContextMenuItems,
   } = usePlotInteractionHandlers({
     config,
+    arraySeries,
     coordinator,
     draggingRef,
     setActiveTooltip,
@@ -191,17 +197,48 @@ const Plot = (props: PlotProps): React.JSX.Element => {
     };
   }, [canvasDiv, datasetsBuilder, renderer, subscribeMessageRange]);
 
-  const numSeries = config.paths.length;
+  useEffect(() => {
+    if (!coordinator) {
+      return;
+    }
+    const handler = (items: PlotArraySeries[]) => {
+      setArraySeries(items);
+      setActiveTooltip(undefined);
+    };
+    coordinator.on("arraySeriesChanged", handler);
+    return () => {
+      coordinator.off("arraySeriesChanged", handler);
+      setArraySeries([]);
+    };
+  }, [coordinator]);
+
+  // The renderer orders hover candidates by screen-pixel proximity, before tooltip grouping.
+  const highlightedSeriesIndex = activeTooltip?.data[0]?.configIndex;
+  const numSeries = config.paths.length + arraySeries.length;
   const tooltipContent = useMemo(() => {
+    const colors = { ...colorsByDatasetIndex };
+    const labels = { ...labelsByDatasetIndex };
+    for (const item of arraySeries) {
+      colors[item.datasetIndex] = item.color;
+      labels[item.datasetIndex] = `${labels[item.configIndex]} [${item.arrayIndex}]`;
+    }
     return activeTooltip ? (
       <TimeBasedChartTooltipContent
         content={activeTooltip.data}
+        highlightedSeriesIndex={highlightedSeriesIndex}
         multiDataset={numSeries > 1}
-        colorsByConfigIndex={colorsByDatasetIndex}
-        labelsByConfigIndex={labelsByDatasetIndex}
+        colorsByConfigIndex={colors}
+        labelsByConfigIndex={labels}
       />
     ) : undefined;
-  }, [activeTooltip, colorsByDatasetIndex, labelsByDatasetIndex, numSeries]);
+  }, [
+    activeTooltip,
+    arraySeries,
+    colorsByDatasetIndex,
+    highlightedSeriesIndex,
+    labelsByDatasetIndex,
+    numSeries,
+  ]);
 
   const hoveredValuesBySeriesIndex = useMemo(() => {
     if (!config.showPlotValuesInLegend || !activeTooltip?.data) {
@@ -244,6 +281,8 @@ const Plot = (props: PlotProps): React.JSX.Element => {
             sidebarDimension={sidebarDimension}
             showValues={config.showPlotValuesInLegend}
             hoveredValuesBySeriesIndex={hoveredValuesBySeriesIndex}
+            arraySeries={xAxisMode === "timestamp" ? arraySeries : undefined}
+            highlightedSeriesIndex={highlightedSeriesIndex}
           />
         )}
         <Tooltip
