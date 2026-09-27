@@ -276,6 +276,19 @@ function Chart(props: Props): React.JSX.Element {
     [maybeUpdateScales, onFinishRender, onStartRender],
   );
 
+  const [updateError, setUpdateError] = useState<Error | undefined>();
+  const handleUpdateError = useCallback(
+    (error: unknown) => {
+      // Teardown rejects pending RPCs; a disposed chart must not report those as failures.
+      if (!isMounted()) {
+        return;
+      }
+      setUpdateError(error as Error);
+      console.error(error);
+    },
+    [isMounted],
+  );
+
   // Update the chart with a new set of data
   const updateChart = useCallback(
     async (update: PartialUpdate) => {
@@ -308,7 +321,7 @@ function Chart(props: Props): React.JSX.Element {
 
       // Using queueMicrotask to ensure the canvas is completely inserted into the DOM
       // before sending the initialization request to the worker.
-      queueMicrotask(async () => {
+      const initializeChart = async () => {
         if (!sendWrapperRef.current) {
           return;
         }
@@ -345,12 +358,14 @@ function Chart(props: Props): React.JSX.Element {
         await flushUpdates(sendWrapperRef.current);
         // once we are initialized, we can allow other handlers to send to the rpc endpoint
         rpcSendRef.current = sendWrapperRef.current;
+      };
+      queueMicrotask(() => {
+        void initializeChart().catch(handleUpdateError);
       });
     },
-    [maybeUpdateScales, onFinishRender, onStartRender, type, flushUpdates],
+    [maybeUpdateScales, onFinishRender, onStartRender, type, flushUpdates, handleUpdateError],
   );
 
-  const [updateError, setUpdateError] = useState<Error | undefined>();
   useLayoutEffect(() => {
     if (!containerRef.current) {
       return;
@@ -363,13 +378,8 @@ function Chart(props: Props): React.JSX.Element {
       return;
     }
 
-    updateChart(newUpdate).catch((err: unknown) => {
-      if (isMounted()) {
-        setUpdateError(err as Error);
-      }
-      console.error(err);
-    });
-  }, [getNewUpdateMessage, isMounted, updateChart]);
+    updateChart(newUpdate).catch(handleUpdateError);
+  }, [getNewUpdateMessage, handleUpdateError, updateChart]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;

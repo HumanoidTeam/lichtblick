@@ -54,6 +54,7 @@ describe("useTopicPublishFrequencies", () => {
   });
 
   it("updates frequences for a live source", () => {
+    const wallClock = jest.spyOn(Date, "now").mockReturnValue(0);
     let activeData: Partial<PlayerState["activeData"]> = {
       currentTime: { sec: 2, nsec: 0 },
       endTime: { sec: 10, nsec: 0 },
@@ -83,9 +84,10 @@ describe("useTopicPublishFrequencies", () => {
         ["topic_b", { numMessages: 40 }],
       ]),
     };
+    // The live hook measures wall time, not the playback clock in activeData.
+    wallClock.mockReturnValue(1_000);
     rerender();
 
-    expect(result.current["topic_a"]).toBeGreaterThan(0);
-    expect(result.current["topic_b"]).toBeGreaterThan(0);
+    expect(result.current).toStrictEqual({ topic_a: 10, topic_b: 20 });
   });
 });
