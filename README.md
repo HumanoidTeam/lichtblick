@@ -17,6 +17,54 @@ Lichtblick is an integrated visualization and diagnosis tool for robotics, avail
 </p>
 </div>
 
+## HMND integration branch
+
+This branch (`hmnd_integration`) is a fork of Lichtblick by Humanoid (HumanoidTeam).
+It is not an official Lichtblick release.
+
+- Base: upstream tag `v1.29.1`.
+- Release tags on this branch: `hmnd-v1.29.1-rN`.
+- License: MPL-2.0, the same as upstream. The license of the upstream files does not change.
+- No warranty. Refer to the MPL-2.0 license text in `LICENSE`.
+
+### What the branch adds
+
+- `web-hmnd/`: a web entrypoint for HMND tools. It limits the data sources, hides the app bar
+  unless a URL parameter enables it, loads extensions that are served next to the bundle, and
+  sets toolbar mode and layout lock from URL parameters.
+- `web-hmnd/src/index.ts` exports `main({ extraPanels })`. `web-hmnd/webpack.config.ts` exports
+  `makeWebHmndConfig({ contextPath, entrypoint, outputPath })`. A downstream build can use its
+  own entry file and add panels. Refer to `web-hmnd/README.md`.
+- `WebRoot` props: `extensionLoaders` (replace or extend the extension loaders) and `extraPanels`
+  (add panels to the built-in panel catalog).
+- Operator chrome settings: panel toolbar mode and layout lock.
+- 3D panel: ROS interactive markers (transport, renderables, drag input, context menu). The saved
+  interactive marker settings are restored.
+- Foxglove WebSocket player: one alert for all deprecated service schemas.
+- Deep links: `startTime` and `endTime` URL parameters limit the playback range.
+  `mcap-bundle` links keep the range and do not write short-lived URLs to the recent sources.
+  Layout import normalizes Foxglove layout exports.
+- Extension API: optional `start` and `end` bounds for `subscribeMessageRange`.
+- Call Service panel: `timeoutSeconds` setting.
+- Plot panel: step interpolation, indexed array series, secondary Y axis, highlight of the
+  nearest series, less copying of preloaded data.
+- State Transitions panel: indexed array rows.
+- Fixes: layout storage that is full no longer breaks the workspace; nested User Script
+  datatypes use resolved names; clean teardown of the chart worker.
+- Yarn: minimum npm release age of 7 days (`npmMinimalAgeGate`).
+- Removed: the desktop (Electron) app, the e2e tests, large test fixtures, and the CI workflows
+  that use them. Only the web build is supported.
+
+### How it is consumed
+
+The HumanoidTeam `hmnd` monorepo includes this branch as a git subtree at a release tag.
+Build the HMND web bundle with:
+
+```sh
+corepack yarn install --immutable
+corepack yarn run web-hmnd:build:prod
+```
+
 ## :rocket: Try Lichtblick
 
 **[Try Lichtblick now in your browser!](https://lichtblick-suite.github.io/lichtblick/)**
