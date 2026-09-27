@@ -21,6 +21,8 @@
   "devDependencies": {
     "@lichtblick/suite": "workspace:*",
     "@lichtblick/tsconfig": "1.1.2",
-    "@types/dom-webcodecs": "0.1.14"
+    "@types/dom-webcodecs": "0.1.14",
+    "@types/jest": "30.0.0",
+    "@types/node": "20.10.0"
   }
 }

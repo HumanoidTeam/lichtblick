@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@lichtblick/tsconfig": "1.1.2",
+    "@types/node": "20.10.0",
     "typescript": "6.0.3"
   }
 }
