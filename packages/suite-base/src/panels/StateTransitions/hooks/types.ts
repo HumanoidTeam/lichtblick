@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { ChartDatasets } from "@lichtblick/suite-base/components/TimeBasedChart/types";
-import { PathState } from "@lichtblick/suite-base/panels/StateTransitions/types";
+import { PathLegendRow, PathState } from "@lichtblick/suite-base/panels/StateTransitions/types";
 
 export type UseStateTransitionsData = {
   pathState: PathState[];
+  legendRows: PathLegendRow[];
   data: {
     datasets: ChartDatasets;
   };

@@ -32,6 +32,7 @@ describe("useStateTransitionsData", () => {
       data: { datasets: [] },
       minY: undefined,
       pathState: [],
+      legendRows: [],
     });
   });
 

@@ -14,9 +14,12 @@ import { UseStateTransitionsData } from "@lichtblick/suite-base/panels/StateTran
 import { messagesToDataset } from "@lichtblick/suite-base/panels/StateTransitions/messagesToDataset";
 import { datasetContainsArray } from "@lichtblick/suite-base/panels/StateTransitions/shared";
 import {
+  PathLegendRow,
   PathState,
   StateTransitionPath,
 } from "@lichtblick/suite-base/panels/StateTransitions/types";
+
+import { arrayMessagesToDatasets } from "../arrayMessagesToDatasets";
 
 function useStateTransitionsData(
   paths: StateTransitionPath[],
@@ -33,18 +36,41 @@ function useStateTransitionsData(
         data: { datasets: [] },
         minY: undefined,
         pathState: [],
+        legendRows: paths.map((path, configIndex) => ({ path, configIndex })),
       };
     }
 
     let outMinY: number | undefined;
     const outDatasets: ChartDatasets = [];
     const outPathState: PathState[] = [];
+    const legendRows: PathLegendRow[] = [];
 
     paths.forEach((path, pathIndex) => {
-      const y = -(pathIndex + 1) * ROW_SPACING;
+      const y = -(legendRows.length + 1) * ROW_SPACING;
       outMinY = Math.min(outMinY ?? y, y - ROW_MARGIN);
 
       const blocksForPath = decodedBlocks.map((decodedBlock) => decodedBlock[path.value]);
+      if (path.expandArrays === true) {
+        const expanded = arrayMessagesToDatasets({
+          blocks: [...blocksForPath, undefined, itemsByPath[path.value]],
+          path,
+          pathIndex,
+          startTime,
+          y,
+          showPoints,
+        });
+        outPathState.push({ path, isArray: false, arrayError: expanded.error });
+        for (const row of expanded.rows) {
+          legendRows.push({ path: row.path, configIndex: pathIndex });
+          outDatasets.push(...row.datasets);
+        }
+        if (expanded.rows.length === 0) {
+          legendRows.push({ path, configIndex: pathIndex });
+        }
+        outMinY = -legendRows.length * ROW_SPACING - ROW_MARGIN;
+        return;
+      }
+      legendRows.push({ path, configIndex: pathIndex });
 
       const newBlockDataSet = messagesToDataset({
         blocks: blocksForPath,
@@ -83,6 +109,7 @@ function useStateTransitionsData(
       data: { datasets: outDatasets },
       minY: outMinY,
       pathState: outPathState,
+      legendRows,
     };
   }, [decodedBlocks, itemsByPath, paths, startTime, showPoints]);
 }

@@ -131,6 +131,22 @@ describe("makeSeriesNode", () => {
     });
   });
 
+  it("defaults expansion off and exposes array errors through the root node", () => {
+    const path = { ...DEFAULT_STATE_TRANSITION_PATH, value: "/states.values[:]" };
+    const translate = t as unknown as TFunction<"stateTransitions">;
+    const root = makeRootSeriesNode([{ path, isArray: true }], translate);
+    expect(root.children?.["0"]?.fields?.expandArrays).toMatchObject({
+      input: "boolean",
+      value: false,
+    });
+    const invalid = makeRootSeriesNode(
+      [{ path: { ...path, expandArrays: true }, isArray: false, arrayError: true }],
+      translate,
+    );
+    expect(invalid.children?.["0"]?.fields?.value).toMatchObject({ error: "arrayPathError" });
+    expect(invalid.children?.["0"]?.fields?.expandArrays).toMatchObject({ value: true });
+  });
+
   it("should return the node structure with actions when canDelete is false", () => {
     const { seriesNode, index } = setup({ canDelete: false });
 
@@ -449,6 +465,27 @@ describe("usePanelSettings", () => {
     expect(saveConfig).toHaveBeenCalledWith({
       showPoints: action.payload.value,
     });
+  });
+
+  it.each([true, false])("saves only the selected path expansion setting (%s)", (value) => {
+    const { render, config } = setup();
+    act(() => {
+      render.result.current.actionHandler({
+        action: "update",
+        payload: { input: "boolean", path: ["paths", "1", "expandArrays"], value },
+      });
+    });
+    const update = (saveConfig as jest.Mock).mock.calls[0][0] as (
+      draft: StateTransitionConfig,
+    ) => void;
+    const updated = produce(config, update);
+    expect(updated).toEqual({
+      ...config,
+      paths: config.paths.map((path, index) =>
+        index === 1 ? { ...path, expandArrays: value } : path,
+      ),
+    });
+    expect(config.paths[1]?.expandArrays).toBeUndefined();
   });
 
   it("should update config with xAxisRange reseted when xAxisMinValue is updated", () => {

@@ -105,6 +105,31 @@ describe("PathLegend Component", () => {
     expect(mockSaveConfig).toHaveBeenCalledWith({ paths: [props.paths[1]] });
   });
 
+  it("edits and deletes the original config from an expanded legend row", async () => {
+    const arrayPath = {
+      value: "/states.values[:]",
+      timestampMethod: "receiveTime" as const,
+      expandArrays: true,
+    };
+    const scalarPath = { value: "/states.mode", timestampMethod: "receiveTime" as const };
+    const { user } = renderComponent({
+      paths: [arrayPath, scalarPath],
+      rows: [
+        { path: { ...arrayPath, value: "/states.values[2]" }, configIndex: 0 },
+        { path: { ...arrayPath, value: "/states.values[4]" }, configIndex: 0 },
+        { path: scalarPath, configIndex: 1 },
+      ],
+    });
+    await user.click(screen.getByTestId("edit-topic-button-2"));
+    expect(mockSetFocusedPath).toHaveBeenLastCalledWith(["paths", "1"]);
+    await user.click(screen.getByTestId("edit-topic-button-1"));
+    expect(mockSetFocusedPath).toHaveBeenLastCalledWith(["paths", "0"]);
+    mockSetFocusedPath.mockClear();
+    await user.click(screen.getByTestId("delete-topic-button-1"));
+    expect(mockSaveConfig).toHaveBeenCalledWith({ paths: [scalarPath] });
+    expect(mockSetFocusedPath).not.toHaveBeenCalled();
+  });
+
   it("should apply the correct height for each topic", () => {
     const { props } = renderComponent();
     const { style: firstRowStyle } = screen.getByTestId(`row-0`);

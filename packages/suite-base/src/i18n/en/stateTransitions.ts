@@ -7,10 +7,16 @@
 
 export const stateTransitions = {
   addSeriesButton: "Click to add a series",
+  arrayPathError:
+    "Use a single primitive-array slice, such as .states[:], without object arrays or filters.",
   labels: {
     addSeries: "Add series",
     axisLabel: "Axis label",
     deleteSeries: "Delete series",
+    deleteArraySeries: "Delete array series (all rows)",
+    expandArrays: "Array rows",
+    expandArraysHelp:
+      "One row per observed source index in a primitive-array slice (for example .states[:]). Missing values leave gaps. Negative indices stay relative to the array end. Rows share the series settings.",
     general: "General",
     helpGeneral: "Display a point for every state transition message",
     label: "Label",

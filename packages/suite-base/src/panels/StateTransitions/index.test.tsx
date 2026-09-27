@@ -32,7 +32,7 @@ jest.mock("@lichtblick/suite-base/panels/StateTransitions/hooks/useStateTransiti
 }));
 jest.mock("@lichtblick/suite-base/panels/StateTransitions/hooks/useStateTransitionsData", () => ({
   __esModule: true,
-  default: () => ({ pathState: [], data: { datasets: [] }, minY: 0 }),
+  default: () => ({ pathState: [], legendRows: [], data: { datasets: [] }, minY: 0 }),
 }));
 jest.mock("@lichtblick/suite-base/panels/StateTransitions/hooks/useChartScalesAndBounds", () => ({
   __esModule: true,

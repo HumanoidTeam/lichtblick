@@ -16,6 +16,7 @@ export type StateTransitionPath = {
   value: string;
   label?: string;
   enabled?: boolean;
+  expandArrays?: boolean;
   timestampMethod: TimestampMethod;
 };
 
@@ -34,8 +35,11 @@ export type StateTransitionPanelProps = {
   saveConfig: SaveConfig<StateTransitionConfig>;
 };
 
+export type PathLegendRow = { path: StateTransitionPath; configIndex: number };
+
 export type PathLegendProps = {
   paths: StateTransitionPath[];
+  rows?: PathLegendRow[];
   heightPerTopic: number;
   setFocusedPath: (value: string[] | undefined) => void;
   saveConfig: SaveConfig<StateTransitionConfig>;
@@ -49,6 +53,7 @@ export type PathState = {
   path: StateTransitionPath;
   // Whether the data the path refers to resolves to more than one value
   isArray: boolean;
+  arrayError?: boolean;
 };
 
 export type AxisTreeField = {

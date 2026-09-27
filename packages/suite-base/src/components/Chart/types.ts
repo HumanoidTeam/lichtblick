@@ -7,6 +7,13 @@
 
 import { ScatterDataPoint, ChartData as ChartJsChartData } from "chart.js";
 
+declare module "chart.js" {
+  interface LineControllerDatasetOptions {
+    // Optional x-axis bound for disconnected state rows: do not show stale hover state after it.
+    stateTransitionEnd?: number;
+  }
+}
+
 type Datum = ScatterDataPoint & {
   // chart.js supported properties to show a label above the datapoint
   // used by the state transition panel to show a label above the transition datum

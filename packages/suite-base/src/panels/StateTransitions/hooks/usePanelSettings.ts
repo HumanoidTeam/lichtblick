@@ -60,6 +60,7 @@ export const makeSeriesNode = memoizeWeak(
       canDelete,
       canReorder,
       isArray,
+      arrayError,
     }: PathState & { canDelete: boolean; canReorder: boolean },
     t: TFunction<"stateTransitions">,
   ): SettingsTreeNode => {
@@ -75,7 +76,11 @@ export const makeSeriesNode = memoizeWeak(
       icon: canReorder ? ("DragHandle" as const) : undefined,
       fields: {
         value: {
-          ...(isArray ? { error: t("pathErrorMessage") } : {}),
+          ...(arrayError === true
+            ? { error: t("arrayPathError") }
+            : isArray
+              ? { error: t("pathErrorMessage") }
+              : {}),
           input: "messagepath",
           label: t("labels.messagePath"),
           validTypes: PLOTABLE_ROS_TYPES,
@@ -85,6 +90,12 @@ export const makeSeriesNode = memoizeWeak(
           input: "string",
           label: t("labels.label"),
           value: path.label,
+        },
+        expandArrays: {
+          input: "boolean",
+          label: t("labels.expandArrays"),
+          help: t("labels.expandArraysHelp"),
+          value: path.expandArrays ?? false,
         },
         timestampMethod: {
           input: "select",
@@ -119,13 +130,14 @@ export const makeRootSeriesNode = memoizeWeak(
               ),
             ],
           ]
-        : paths.map(({ path, isArray }, index) => [
+        : paths.map(({ path, isArray, arrayError }, index) => [
             `${index}`,
             makeSeriesNode(
               index,
               {
                 path,
                 isArray,
+                arrayError,
                 canDelete: true,
                 canReorder: paths.length > 1,
               },

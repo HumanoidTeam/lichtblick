@@ -93,6 +93,14 @@ const lastX: InteractionModeFunction = (chart, event, _options, useFinalPosition
   // Create a sparse array to track the last datum for each dataset
   const datasetIndexToLastItem: InteractionItem[] = [];
   Interaction.evaluateInteractionItems(chart, "x", position, (element, datasetIndex, index) => {
+    const dataset = chart.data.datasets[datasetIndex];
+    const end = dataset && "stateTransitionEnd" in dataset ? dataset.stateTransitionEnd : undefined;
+    if (typeof end === "number") {
+      const cursor = chart.getDatasetMeta(datasetIndex).xScale?.getValueForPixel(position.x);
+      if (cursor == undefined || cursor > end) {
+        return;
+      }
+    }
     const center = element.getCenterPoint(useFinalPosition);
     if (center.x <= position.x) {
       datasetIndexToLastItem[datasetIndex] = { element, datasetIndex, index };

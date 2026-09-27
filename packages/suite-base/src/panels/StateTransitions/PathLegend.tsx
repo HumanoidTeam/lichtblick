@@ -16,15 +16,13 @@ import { useWorkspaceActions } from "@lichtblick/suite-base/context/Workspace/us
 import useStyles from "@lichtblick/suite-base/panels/StateTransitions/PathLegend.style";
 import { DEFAULT_STATE_TRANSITION_PATH } from "@lichtblick/suite-base/panels/StateTransitions/constants";
 import { stateTransitionPathDisplayName } from "@lichtblick/suite-base/panels/StateTransitions/shared";
-import {
-  PathLegendProps,
-  StateTransitionPath,
-} from "@lichtblick/suite-base/panels/StateTransitions/types";
+import { PathLegendProps } from "@lichtblick/suite-base/panels/StateTransitions/types";
 
 // eslint-disable-next-line @typescript-eslint/no-shadow
 export const PathLegend = React.memo(function PathLegend(props: PathLegendProps) {
   const { t } = useTranslation("stateTransitions");
-  const { paths, heightPerTopic, setFocusedPath, saveConfig } = props;
+  const { paths, rows, heightPerTopic, setFocusedPath, saveConfig } = props;
+  const legendRows = rows ?? paths.map((path, configIndex) => ({ path, configIndex }));
   const { setSelectedPanelIds } = useSelectedPanels();
   const { id: panelId } = usePanelContext();
   const { openPanelSettings } = useWorkspaceActions();
@@ -58,47 +56,54 @@ export const PathLegend = React.memo(function PathLegend(props: PathLegendProps)
 
   return (
     <Stack className={classes.chartOverlay} position="absolute" paddingTop={0.5}>
-      {(paths.length === 0 ? [DEFAULT_STATE_TRANSITION_PATH] : paths).map(
-        (path: StateTransitionPath, index: number) => (
-          <div
-            data-testid={`row-${index}`}
-            className={classes.row}
-            key={index}
-            style={{ height: heightPerTopic }}
+      {(paths.length === 0
+        ? [{ path: DEFAULT_STATE_TRANSITION_PATH, configIndex: 0 }]
+        : legendRows
+      ).map(({ path, configIndex }, index) => (
+        <div
+          data-testid={`row-${index}`}
+          className={classes.row}
+          key={index}
+          style={{ height: heightPerTopic }}
+        >
+          <ButtonGroup
+            size="small"
+            color="inherit"
+            variant="contained"
+            className={classes.buttonGroup}
           >
-            <ButtonGroup
-              size="small"
-              color="inherit"
-              variant="contained"
-              className={classes.buttonGroup}
+            <Button
+              data-testid={`edit-topic-button-${index}`}
+              endIcon={paths.length === 0 && <Add16Regular />}
+              onClick={() => {
+                handleEditTopic(configIndex);
+              }}
             >
+              {paths.length === 0
+                ? t("addSeriesButton")
+                : stateTransitionPathDisplayName(path, configIndex)}
+            </Button>
+            {paths.length > 0 && (
               <Button
-                data-testid={`edit-topic-button-${index}`}
-                endIcon={paths.length === 0 && <Add16Regular />}
-                onClick={() => {
-                  handleEditTopic(index);
+                data-testid={`delete-topic-button-${index}`}
+                aria-label={t(
+                  path.expandArrays === true ? "labels.deleteArraySeries" : "labels.deleteSeries",
+                )}
+                title={t(
+                  path.expandArrays === true ? "labels.deleteArraySeries" : "labels.deleteSeries",
+                )}
+                className={classes.dismissIcon}
+                size="small"
+                onClick={(event) => {
+                  handleDeletePath(event, configIndex);
                 }}
               >
-                {paths.length === 0
-                  ? t("addSeriesButton")
-                  : stateTransitionPathDisplayName(path, index)}
+                <Dismiss12Regular />
               </Button>
-              {paths.length > 0 && (
-                <Button
-                  data-testid={`delete-topic-button-${index}`}
-                  className={classes.dismissIcon}
-                  size="small"
-                  onClick={(event) => {
-                    handleDeletePath(event, index);
-                  }}
-                >
-                  <Dismiss12Regular />
-                </Button>
-              )}
-            </ButtonGroup>
-          </div>
-        ),
-      )}
+            )}
+          </ButtonGroup>
+        </div>
+      ))}
     </Stack>
   );
 });
