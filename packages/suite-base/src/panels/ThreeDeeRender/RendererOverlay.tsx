@@ -17,7 +17,7 @@ import {
   Tooltip,
   useTheme,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLongPress } from "react-use";
 import tc from "tinycolor2";
@@ -173,6 +173,7 @@ export function RendererOverlay(props: Props): React.JSX.Element {
     undefined,
   );
   const [interactionsTabType, setInteractionsTabType] = useState<TabType | undefined>(undefined);
+  const [extensionOverlays, setExtensionOverlays] = useState<[string, React.ReactNode][]>([]);
   const [hoveredEntities, setHoveredEntities] = useState<HoverEntityInfo[]>([]);
   const [hoverPosition, setHoverPosition] = useState<{ clientX: number; clientY: number }>({
     clientX: 0,
@@ -198,6 +199,18 @@ export function RendererOverlay(props: Props): React.JSX.Element {
       renderer.setPickingEnabled(interactionsTabType != undefined);
     }
   }, [interactionsTabType, renderer]);
+
+  // SceneExtensions have no React of their own. They set overlay elements on the renderer
+  // (for example a context menu), and the overlay renders them.
+  useEffect(() => {
+    setExtensionOverlays([...(renderer?.overlays.entries() ?? [])]);
+  }, [renderer]);
+  useRendererEvent(
+    "overlaysChanged",
+    useCallback((changedRenderer) => {
+      setExtensionOverlays([...changedRenderer.overlays.entries()]);
+    }, []),
+  );
 
   useRendererEvent(
     "renderablesClicked",
@@ -520,6 +533,9 @@ export function RendererOverlay(props: Props): React.JSX.Element {
           }}
         />
       )}
+      {extensionOverlays.map(([id, element]) => (
+        <Fragment key={id}>{element}</Fragment>
+      ))}
       <HUD renderer={renderer} />
       <HoverTooltip entities={hoveredEntities} position={hoverPosition} canvas={props.canvas} />
       {stats}

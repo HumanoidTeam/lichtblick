@@ -10,6 +10,7 @@ import EventEmitter from "eventemitter3";
 import { quat, vec3 } from "gl-matrix";
 import i18next from "i18next";
 import { produce } from "immer";
+import type { ReactNode } from "react";
 import * as THREE from "three";
 import { DeepPartial, assert } from "ts-essentials";
 import { v4 as uuidv4 } from "uuid";
@@ -59,6 +60,7 @@ import { Input } from "./Input";
 import { DEFAULT_MESH_UP_AXIS, ModelCache } from "./ModelCache";
 import { PickedRenderable, Picker } from "./Picker";
 import type { Renderable } from "./Renderable";
+import type { RosApi } from "./RosApi";
 import { SceneExtension } from "./SceneExtension";
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ScreenOverlay } from "./ScreenOverlay";
@@ -269,6 +271,8 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   /** Options passed for local testing and storybook. */
   public readonly testOptions: TestOptions;
   public analytics?: IAnalytics;
+  public rosApi?: RosApi;
+  #overlays = new Map<string, ReactNode>();
 
   public constructor(args: {
     canvas: HTMLCanvasElement;
@@ -1873,6 +1877,25 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       }
     });
   };
+
+  public setRosApi(rosApi: RosApi | undefined): void {
+    this.rosApi = rosApi;
+  }
+
+  public get overlays(): ReadonlyMap<string, ReactNode> {
+    return this.#overlays;
+  }
+
+  public setOverlay(id: string, element: ReactNode | undefined): void {
+    if (element == undefined) {
+      if (!this.#overlays.delete(id)) {
+        return;
+      }
+    } else {
+      this.#overlays.set(id, element);
+    }
+    this.emit("overlaysChanged", this);
+  }
 
   public setAnalytics(analytics: IAnalytics): void {
     this.analytics = analytics;

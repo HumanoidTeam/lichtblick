@@ -37,6 +37,11 @@ export const PublishRos2Datatypes = new Map<string, MessageDefinition>(
       "geometry_msgs/PoseWithCovarianceStamped",
       "geometry_msgs/Quaternion",
       "std_msgs/Header",
+      // Feedback message for visualization_msgs interactive servers. Its dependencies (Header,
+      // Pose, Point, Quaternion) are already in this map. A SceneExtension that advertises it must
+      // pass the schema explicitly: the websocket player drops an advertisement whose schema it
+      // cannot resolve.
+      "visualization_msgs/InteractiveMarkerFeedback",
     ] as Array<keyof typeof ros2galactic>
   ).map((type) => [type, ros2galactic[type]]),
 );

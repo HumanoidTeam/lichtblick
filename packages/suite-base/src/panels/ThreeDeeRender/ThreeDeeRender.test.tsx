@@ -83,6 +83,7 @@ const createMockRenderer = (overrides?: Record<string, any>) => {
     setAnalytics: jest.fn(),
     setCustomCameraModels: jest.fn(),
     setCameraSyncError: jest.fn(),
+    setRosApi: jest.fn(),
     followFrameId: "base_link",
     ros: false,
     currentTime: undefined,
@@ -258,6 +259,27 @@ describe("ThreeDeeRender", () => {
     expect(rendererConfig?.cameraState).toMatchObject(DEFAULT_CAMERA_STATE);
     expect(rendererConfig?.followMode).toBe(DEFAULT_FOLLOW_MODE);
     expect(rendererConfig?.followTf).toBeUndefined();
+    expect(rendererConfig?.extensionSettings).toBeUndefined();
+  });
+
+  it("restores and saves scene extension settings", async () => {
+    const settings = {
+      "example.extension": { clientId: "saved-client", namespaces: { "/a": { visible: true } } },
+    };
+    const initialState = { extensionSettings: settings };
+    const initialSnapshot = JSON.stringify(initialState);
+    const props = setup({}, { initialState });
+
+    render(<ThreeDeeRender {...props} />);
+
+    expect(mockedRenderer).toHaveBeenCalled();
+    expect(mockedRenderer.mock.calls[0]?.[0].config.extensionSettings).toEqual(settings);
+    await waitFor(() => {
+      expect(props.context.saveState).toHaveBeenCalledWith(
+        expect.objectContaining({ extensionSettings: settings }),
+      );
+    });
+    expect(JSON.stringify(initialState)).toBe(initialSnapshot);
   });
 
   it("initializes with custom camera state when an initial state is provided", () => {

@@ -6,6 +6,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import EventEmitter from "eventemitter3";
+import type { ReactNode } from "react";
 import * as THREE from "three";
 
 import { CameraModelsMap } from "@lichtblick/den/image/types";
@@ -34,6 +35,7 @@ import { LabelPool } from "@lichtblick/three-text";
 import { Input } from "./Input";
 import { MeshUpAxis, ModelCache } from "./ModelCache";
 import { PickedRenderable } from "./Picker";
+import type { RosApi } from "./RosApi";
 import { SceneExtension } from "./SceneExtension";
 import { SettingsManager } from "./SettingsManager";
 import { SharedGeometry } from "./SharedGeometry";
@@ -80,6 +82,8 @@ export type RendererEvents = {
   resetAllFramesCursor: (renderer: IRenderer) => void;
   hudItemsChanged: (renderer: IRenderer) => void;
   clearPreloadBuffer: (renderer: IRenderer) => void;
+  /** The set of overlay elements from `setOverlay` changed. */
+  overlaysChanged: (renderer: IRenderer) => void;
 };
 
 export type FollowMode = "follow-pose" | "follow-position" | "follow-none";
@@ -165,6 +169,11 @@ export type RendererConfig = {
     /** Toggles visibility of all topics */
     topicsVisible?: boolean;
   };
+  /**
+   * Saved settings of scene extensions that are not part of the core config, keyed by
+   * extension ID. The renderer does not read them; each extension owns its entry.
+   */
+  extensionSettings?: Record<string, unknown>;
   publish: {
     /** The type of message to publish when clicking in the scene */
     type: PublishClickType;
@@ -298,6 +307,22 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
   /** Optional analytics API to log events in Renderer or SceneExtensions */
   analytics?: IAnalytics;
   setAnalytics(analytics: IAnalytics): void;
+
+  /**
+   * Optional ROS API for SceneExtensions that need to publish messages or call services. Supplied
+   * by the panel, which owns the PanelExtensionContext. Undefined, or with individual members
+   * undefined, when the data source does not support those capabilities.
+   */
+  rosApi?: RosApi;
+  setRosApi(rosApi: RosApi | undefined): void;
+
+  /**
+   * React elements that SceneExtensions show above the canvas (for example a context menu),
+   * keyed by an ID the extension chooses. The panel overlay renders them.
+   */
+  readonly overlays: ReadonlyMap<string, ReactNode>;
+  /** Sets or, with `undefined`, removes the overlay element for `id`. */
+  setOverlay(id: string, element: ReactNode | undefined): void;
   enableImageOnlySubscriptionMode: () => void;
   disableImageOnlySubscriptionMode: () => void;
 

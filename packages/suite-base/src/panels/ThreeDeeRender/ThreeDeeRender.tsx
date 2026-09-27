@@ -125,6 +125,7 @@ export function ThreeDeeRender(props: Readonly<ThreeDeeRenderProps>): React.JSX.
       transforms,
       topics: partialConfig?.topics ?? {},
       layers: partialConfig?.layers ?? {},
+      extensionSettings: partialConfig?.extensionSettings,
       publish,
       // deep partial on config, makes gradient tuple type [string | undefined, string | undefined]
       // which is incompatible with `Partial<ColorModeSettings>`
@@ -192,6 +193,27 @@ export function ThreeDeeRender(props: Readonly<ThreeDeeRenderProps>): React.JSX.
       renderer.setAnalytics(analytics);
     }
   }, [renderer, analytics]);
+
+  // Hand the renderer the subset of the panel context that SceneExtensions need in order to
+  // publish messages and call services. Members stay undefined when the data source lacks the
+  // capability, which extensions treat as "render read-only" rather than as an error.
+  const rosApi = useMemo(
+    () => ({
+      advertise: context.advertise?.bind(context),
+      unadvertise: context.unadvertise?.bind(context),
+      publish: context.publish?.bind(context),
+      callService: context.callService?.bind(context),
+      dataSourceProfile: context.dataSourceProfile,
+    }),
+    [context],
+  );
+
+  useEffect(() => {
+    renderer?.setRosApi(rosApi);
+    return () => {
+      renderer?.setRosApi(undefined);
+    };
+  }, [renderer, rosApi]);
 
   useEffect(() => {
     setMessagePathDropConfig(
