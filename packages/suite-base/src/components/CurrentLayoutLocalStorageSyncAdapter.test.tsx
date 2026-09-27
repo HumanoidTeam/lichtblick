@@ -94,6 +94,25 @@ describe("CurrentLayoutLocalStorageSyncAdapter", () => {
     expect(storedData).toBe(JSON.stringify(mockLayoutData));
   });
 
+  it("keeps the workspace usable when browser storage is full", async () => {
+    const setItemSpy = jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    expect(() => renderComponent()).not.toThrow();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Unable to persist the current layout in browser storage",
+      expect.any(Error),
+    );
+    setItemSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
   it("sends new layout data to layoutManager after initial load", async () => {
     // Given
     mockGetCurrentLayoutState.mockReturnValue({

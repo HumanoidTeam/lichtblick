@@ -55,7 +55,15 @@ export function CurrentLayoutLocalStorageSyncAdapter(): React.JSX.Element {
 
     const serializedLayoutData = JSON.stringify(debouncedLayoutData);
     assert(serializedLayoutData);
-    localStorage.setItem(LOCAL_STORAGE_STUDIO_LAYOUT_KEY, serializedLayoutData);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_STUDIO_LAYOUT_KEY, serializedLayoutData);
+    } catch (error: unknown) {
+      // Layouts can exceed browser storage quotas (for example after a large
+      // recording or a generated UserScript state update). Persistence is a
+      // convenience; keep the in-memory workspace usable and make the loss of
+      // persistence visible in the application logs.
+      log.warn("Unable to persist the current layout in browser storage", error);
+    }
   }, [debouncedLayoutData]);
 
   // Send new layoutData to layoutManager to be saved

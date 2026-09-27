@@ -614,3 +614,115 @@ export function validateLayoutData(data: unknown): LayoutData {
 
   return data as LayoutData;
 }
+
+/**
+ * Normalizes layout exports from Foxglove and validates the parts that can be
+ * checked without a live data source.  Message paths are deliberately not
+ * checked here: whether a topic exists is source-dependent and is validated
+ * by the panel path resolver when a source is available.
+ *
+ * Foxglove and Lichtblick use different names for custom panel titles.  The
+ * Foxglove export also contains `editingMode` on CallService panels; that is
+ * an editor-only field which Lichtblick does not consume.
+ */
+export function normalizeImportedLayoutData(data: unknown): LayoutData {
+  const validated = validateLayoutData(data);
+  const configById: Record<string, PanelConfig> = {};
+
+  for (const [panelId, rawConfig] of Object.entries(validated.configById)) {
+    if (!isPlainObject(rawConfig)) {
+      throw new Error(`invalid config for panel "${panelId}": expected an object`);
+    }
+
+    const panelType = getPanelTypeFromId(panelId);
+    const config: Record<string, unknown> = { ...rawConfig };
+
+    if (config.foxglovePanelTitle !== undefined) {
+      if (config.lichtblickPanelTitle === undefined) {
+        config.lichtblickPanelTitle = config.foxglovePanelTitle;
+      }
+      delete config.foxglovePanelTitle;
+    }
+
+    if (panelType === "CallService") {
+      validateImportedCallServiceConfig(panelId, config);
+      delete config.editingMode;
+    }
+
+    if (panelType === "Plot") {
+      validateImportedPlotConfig(panelId, config);
+    }
+
+    configById[panelId] = config;
+  }
+
+  const referencedPanelIds = collectLayoutPanelIds(validated.layout, configById);
+  const missingPanelIds = referencedPanelIds.filter((panelId) => configById[panelId] === undefined);
+  if (missingPanelIds.length > 0) {
+    throw new Error(`layout references panels without configs: ${missingPanelIds.join(", ")}`);
+  }
+
+  return { ...validated, configById };
+}
+
+function validateImportedCallServiceConfig(panelId: string, config: Record<string, unknown>): void {
+  const stringFields = ["serviceName", "requestPayload", "buttonText", "buttonTooltip", "buttonColor"];
+  for (const field of stringFields) {
+    if (config[field] !== undefined && typeof config[field] !== "string") {
+      throw new Error(`invalid CallService config for "${panelId}": ${field} must be a string`);
+    }
+  }
+  if (config.layout !== undefined && config.layout !== "vertical" && config.layout !== "horizontal") {
+    throw new Error(`invalid CallService config for "${panelId}": layout must be vertical or horizontal`);
+  }
+  if (
+    config.timeoutSeconds !== undefined &&
+    (typeof config.timeoutSeconds !== "number" || !Number.isFinite(config.timeoutSeconds) || config.timeoutSeconds < 0)
+  ) {
+    throw new Error(`invalid CallService config for "${panelId}": timeoutSeconds must be a non-negative finite number`);
+  }
+  if (typeof config.requestPayload === "string") {
+    try {
+      JSON.parse(config.requestPayload);
+    } catch {
+      throw new Error(`invalid CallService config for "${panelId}": requestPayload must be JSON`);
+    }
+  }
+}
+
+function validateImportedPlotConfig(panelId: string, config: Record<string, unknown>): void {
+  const legalLegendDisplays = new Set(["floating", "left", "top", "none"]);
+  if (config.legendDisplay !== undefined) {
+    const normalizedLegendDisplay = String(config.legendDisplay).toLowerCase();
+    if (!legalLegendDisplays.has(normalizedLegendDisplay)) {
+      throw new Error(`invalid Plot config for "${panelId}": legendDisplay must be floating, left, top, or none`);
+    }
+    config.legendDisplay = normalizedLegendDisplay;
+  }
+  if (config.paths !== undefined && !Array.isArray(config.paths)) {
+    throw new Error(`invalid Plot config for "${panelId}": paths must be an array`);
+  }
+  for (const [index, rawPath] of (config.paths as unknown[] | undefined ?? []).entries()) {
+    if (!isPlainObject(rawPath) || typeof rawPath.value !== "string" || rawPath.value.length === 0) {
+      throw new Error(`invalid Plot config for "${panelId}": paths[${index}].value must be a non-empty string`);
+    }
+  }
+}
+
+function collectLayoutPanelIds(
+  layout: unknown,
+  configById: Record<string, PanelConfig>,
+  result = new Set<string>(),
+): string[] {
+  if (typeof layout === "string") {
+    result.add(layout);
+    const config = configById[layout];
+    if (isTabPanelConfig(config)) {
+      config.tabs.forEach((tab) => collectLayoutPanelIds(tab.layout, configById, result));
+    }
+  } else if (isPlainObject(layout)) {
+    collectLayoutPanelIds(layout.first, configById, result);
+    collectLayoutPanelIds(layout.second, configById, result);
+  }
+  return [...result];
+}
