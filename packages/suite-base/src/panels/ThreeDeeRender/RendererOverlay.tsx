@@ -17,7 +17,7 @@ import {
   Tooltip,
   useTheme,
 } from "@mui/material";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLongPress } from "react-use";
 import tc from "tinycolor2";
@@ -161,7 +161,11 @@ function extractHoverMetadata(
 /**
  * Provides DOM overlay elements on top of the 3D scene (e.g. stats, debug GUI).
  */
-export function RendererOverlay(props: Props): React.JSX.Element {
+/**
+ * Memoized: the 3D panel re-renders on every player frame, and the overlay (MUI buttons, tooltips,
+ * menus) only depends on its props and renderer events.
+ */
+export const RendererOverlay = memo(function RendererOverlay(props: Props): React.JSX.Element {
   const { t } = useTranslation("threeDee");
   const { classes } = useStyles();
   const [clickedPosition, setClickedPosition] = useState<{ clientX: number; clientY: number }>({
@@ -542,4 +546,4 @@ export function RendererOverlay(props: Props): React.JSX.Element {
       {resetViewButton}
     </>
   );
-}
+});
