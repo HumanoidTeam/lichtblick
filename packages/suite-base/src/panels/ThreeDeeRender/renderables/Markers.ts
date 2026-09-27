@@ -255,7 +255,7 @@ export class Markers extends SceneExtension<TopicMarkers> {
   }
 }
 
-function normalizeMarker(marker: PartialMessage<Marker>): Marker {
+export function normalizeMarker(marker: PartialMessage<Marker>): Marker {
   return {
     header: normalizeHeader(marker.header),
     ns: marker.ns ?? "",
