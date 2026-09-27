@@ -38,6 +38,10 @@ export const getChartOptions = ({
         },
         color: tickColor,
         maxRotation: 0,
+        // Keep the first and last labels inside the chart. With the default alignment chart.js
+        // reserves half of the last label's width as right padding, so the chart area changed width
+        // when the label at the live edge changed length (for example "6.4" to "6.45").
+        align: "inner",
       },
     },
     y: {

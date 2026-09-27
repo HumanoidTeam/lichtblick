@@ -592,6 +592,11 @@ export default function TimeBasedChart(props: Props): React.JSX.Element {
         intersect: false,
         mode: props.interactionMode ?? "x",
       },
+      // chart.js "auto padding" reserves room for the line width of the first and last point of
+      // each dataset, and for the full line width of an empty line dataset. The State Transitions
+      // datasets have a 10 px line, and live updates add and fill datasets, so the chart area moved
+      // by up to 10 px on each update and the rows bounced. Keep the chart area fixed.
+      layout: { autoPadding: false },
       scales: {
         x: xScale,
         y: yScale,

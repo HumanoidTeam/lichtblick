@@ -55,7 +55,12 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
   private datasetsBuilder: IDatasetsBuilder;
   private shouldSync: boolean = false;
   private configBounds: ConfigBounds = { x: {}, y: {} };
-  private globalBounds?: Immutable<Partial<Bounds1D>>;
+  /**
+   * X bounds shared by synced panels. `userInteraction` is false when another panel published its
+   * own data range (for example a State Transitions panel following live data), true after a pan or
+   * zoom.
+   */
+  private globalBounds?: Immutable<Partial<Bounds1D> & { userInteraction?: boolean }>;
   private datasetRange?: Bounds1D;
   private followRange?: number;
   private interactionBounds?: PlotBounds;
@@ -384,7 +389,9 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
     this.queueDispatchDownsample();
   }
 
-  public setGlobalBounds(bounds: Immutable<Bounds1D> | undefined): void {
+  public setGlobalBounds(
+    bounds: Immutable<Bounds1D & { userInteraction?: boolean }> | undefined,
+  ): void {
     this.globalBounds = bounds;
     this.interactionBounds = undefined;
     if (bounds == undefined) {
@@ -451,7 +458,9 @@ export class PlotCoordinator extends EventEmitter<PlotCoordinatorEventTypes> {
       return true;
     }
 
-    if (this.globalBounds) {
+    // Bounds that another panel publishes from its own data range are not a zoom or pan. They change
+    // on every live update, so treating them as one makes "Reset view" flash during playback.
+    if (this.globalBounds?.userInteraction === true) {
       const resetBounds = this.getXResetBounds();
       return this.globalBounds.min !== resetBounds.min || this.globalBounds.max !== resetBounds.max;
     }

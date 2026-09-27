@@ -51,6 +51,7 @@ describe("getChartOptions", () => {
             },
             color: mockTickColor,
             maxRotation: 0,
+            align: "inner",
           },
         },
         y: {

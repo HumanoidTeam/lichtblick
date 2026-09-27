@@ -1047,6 +1047,25 @@ describe("PlotCoordinator", () => {
     });
   });
 
+  describe("viewportChange (can reset)", () => {
+    async function canResetAfter(bounds: { min: number; max: number; userInteraction: boolean }) {
+      const viewportChange = jest.fn();
+      plotCoordinator.on("viewportChange", viewportChange);
+      plotCoordinator.setGlobalBounds(bounds);
+      await plotCoordinator["dispatchRender"]();
+      return viewportChange.mock.lastCall?.[0] as boolean | undefined;
+    }
+
+    it("does not offer a reset for bounds that another panel publishes from its data range", async () => {
+      // A synced State Transitions panel publishes its own range on every live update
+      await expect(canResetAfter({ min: 0, max: 10, userInteraction: false })).resolves.toBe(false);
+    });
+
+    it("offers a reset for bounds from a user pan or zoom in another panel", async () => {
+      await expect(canResetAfter({ min: 0, max: 10, userInteraction: true })).resolves.toBe(true);
+    });
+  });
+
   describe("setShouldSync", () => {
     // eslint-disable-next-line @lichtblick/no-boolean-parameters
     it.each([true, false])("should update shouldSync property", (shouldSync: boolean) => {
