@@ -335,24 +335,15 @@ export const constructDatatypes = (
       case ts.SyntaxKind.InterfaceDeclaration:
       case ts.SyntaxKind.TypeLiteral: {
         const typeLiteral = tsNode as ts.TypeLiteralNode;
-        const symbolName = maybeSymbol(tsNode)?.name;
-
-        const messageDefinition =
-          symbolName != undefined ? messageDefinitionMap[symbolName] : undefined;
-
-        const nestedType =
-          isNodeFromRosModule(typeLiteral) && messageDefinition != undefined
-            ? messageDefinition
-            : `${currentDatatype}/${name}`;
-
         const typeParamMap = ts.isInterfaceDeclaration(tsNode)
           ? buildTypeMapFromParams(tsNode.typeParameters, typeMap)
           : typeMap;
 
-        const { datatypes: nestedDatatypes } = constructDatatypes(
+        // Recursion may resolve a generated or well-known schema instead of the proposed name.
+        const { outputDatatype: nestedType, datatypes: nestedDatatypes } = constructDatatypes(
           checker,
           typeLiteral,
-          nestedType,
+          `${currentDatatype}/${name}`,
           messageDefinitionMap,
           sourceDatatypes,
           depth + 1,
@@ -464,8 +455,7 @@ export const constructDatatypes = (
         }
 
         const typeParam = findDeclaration(nextSymbol, [ts.SyntaxKind.TypeParameter]) as
-          | ts.TypeParameterDeclaration
-          | undefined;
+          ts.TypeParameterDeclaration | undefined;
 
         if (typeParam) {
           if (typeMap[typeParam.name.escapedText.toString()]) {

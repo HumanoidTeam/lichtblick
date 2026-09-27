@@ -16,6 +16,7 @@
 
 /* eslint-disable jest/no-conditional-expect */
 
+import { messagePathStructures } from "@lichtblick/suite-base/components/MessagePathSyntax/messagePathsForDatatype";
 import {
   DIAGNOSTIC_SEVERITY,
   SOURCES,
@@ -63,6 +64,86 @@ const baseNodeData: ScriptData = {
 };
 
 describe("pipeline", () => {
+  it.each([
+    ['Message<"geometry_msgs/WrenchStamped">["header"]', "std_msgs/Header"],
+    [
+      '{ stamp: Message<"std_msgs/Header">["stamp"]; frame_id: string }',
+      "Right wrist force magnitude/header",
+    ],
+    [
+      "{ stamp: { sec: number; nsec: number }; frame_id: string }",
+      "Right wrist force magnitude/header",
+    ],
+  ])("resolves nested output dependencies for %s", (headerType, headerDatatype) => {
+    const name = "Right wrist force magnitude";
+    // Synthetic source with a separately registered stamp dependency, not just built-in `time`.
+    const datatypes: RosDatatypes = new Map([
+      ...basicDatatypes,
+      [
+        "std_msgs/Header",
+        {
+          definitions: [
+            { name: "stamp", type: "fixture/Stamp", isComplex: true },
+            { name: "frame_id", type: "string" },
+          ],
+        },
+      ],
+      [
+        "fixture/Stamp",
+        {
+          definitions: [
+            { name: "sec", type: "int32" },
+            { name: "nsec", type: "uint32" },
+          ],
+        },
+      ],
+    ]);
+    const topics = [{ name: "/right_ft_sensor/wrench", schemaName: "geometry_msgs/WrenchStamped" }];
+    const sourceCode = `
+      import { Input, Message } from "./types";
+      type Output = { header: ${headerType}; magnitude: number };
+      export const inputs = ["/right_ft_sensor/wrench"];
+      export const output = "/studio/right_wrist_force_magnitude";
+      export default function script(event: Input<"/right_ft_sensor/wrench">): Output {
+        const force = event.message.wrench.force;
+        return { header: event.message.header, magnitude: Math.hypot(force.x, force.y, force.z) };
+      }
+    `;
+    const result = compose(compile, extractDatatypes)(
+      {
+        ...baseNodeData,
+        name,
+        sourceCode,
+        datatypes,
+        typesLib: generateTypesLib({ topics, datatypes }),
+      },
+      topics,
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    // Exercise the same eager traversal used by native Plot/Raw Messages and assistant path resolution.
+    const structure = messagePathStructures(result.datatypes)[name];
+    expect(result.datatypes.get(name)?.definitions).toContainEqual(
+      expect.objectContaining({ name: "header", type: headerDatatype, isComplex: true }),
+    );
+    expect(structure).toMatchObject({
+      nextByName: {
+        header: {
+          nextByName: {
+            frame_id: { primitiveType: "string" },
+            stamp: {
+              nextByName: {
+                sec: { structureType: "primitive" },
+                nsec: { structureType: "primitive" },
+              },
+            },
+          },
+        },
+        magnitude: { primitiveType: "float64" },
+      },
+    });
+  });
+
   describe("getInputTopics", () => {
     it.each([
       ["export const inputs = [ '/some_topic' ];", ["/some_topic"]],
@@ -181,13 +262,13 @@ describe("pipeline", () => {
   });
 
   describe("compile", () => {
-    it.each([
-      "const x: string = 'hello foxglove'",
-      "const num: number = 1222",
-    ])("can compile", (sourceCode) => {
-      const { diagnostics } = compile({ ...baseNodeData, sourceCode });
-      expect(diagnostics).toHaveLength(0);
-    });
+    it.each(["const x: string = 'hello foxglove'", "const num: number = 1222"])(
+      "can compile",
+      (sourceCode) => {
+        const { diagnostics } = compile({ ...baseNodeData, sourceCode });
+        expect(diagnostics).toHaveLength(0);
+      },
+    );
     it.each([
       "const x: number = Math.max(1, 2);",
       "const x: string[] = [ 1, 2, 3 ].map(num => num.toString());",
