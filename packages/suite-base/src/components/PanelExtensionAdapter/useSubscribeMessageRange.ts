@@ -43,10 +43,15 @@ export function useSubscribeMessageRange(
   emitAlertRef.current = emitAlert;
 
   return useCallback(
-    ({ topic, convertTo, onNewRangeIterator }: SubscribeMessageRangeArgs) => {
+    ({ topic, convertTo, start, end, onNewRangeIterator }: SubscribeMessageRangeArgs) => {
       const { sortedTopics, getBatchIterator } = getMessagePipelineContext();
 
-      const rawBatchIterator = getBatchIterator(topic);
+      // Keep the legacy one-argument call for unbounded subscriptions. This preserves compatibility
+      // with pipeline/player implementations that only support the original API shape.
+      const rawBatchIterator =
+        start != undefined || end != undefined
+          ? getBatchIterator(topic, { start, end })
+          : getBatchIterator(topic);
       if (!rawBatchIterator) {
         return () => {};
       }

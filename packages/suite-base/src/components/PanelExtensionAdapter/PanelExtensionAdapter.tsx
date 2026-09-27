@@ -688,6 +688,8 @@ function PanelExtensionAdapter(
        * - Performance characteristics may vary
        * - Error handling is still being refined
        * - API surface may change based on testing feedback
+       * - `start` and `end` bounds are supported only by historical data sources; live players
+       *   continue to return no range iterator
        */
       unstable_subscribeMessageRange(args) {
         if (!isMounted()) {

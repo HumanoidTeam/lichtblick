@@ -307,6 +307,22 @@ export type SubscribeMessageRangeArgs = {
   convertTo?: string;
 
   /**
+   * Optional inclusive start bound for the message history.
+   *
+   * When omitted, messages are read from the beginning of the available history. This is only
+   * supported by data sources that support historical message iteration.
+   */
+  start?: Time;
+
+  /**
+   * Optional inclusive end bound for the message history.
+   *
+   * When omitted, messages are read through the end of the available history. This is only
+   * supported by data sources that support historical message iteration.
+   */
+  end?: Time;
+
+  /**
    * The `onNewRangeIterator` callback function is invoked whenever message data becomes available for
    * the subscribed topic.
    *

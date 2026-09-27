@@ -5,7 +5,7 @@
 
 import { renderHook, act } from "@testing-library/react";
 
-import { MessageEvent } from "@lichtblick/suite";
+import { MessageEvent, Time } from "@lichtblick/suite";
 import { useMessagePipelineGetter } from "@lichtblick/suite-base/components/MessagePipeline";
 import { useExtensionCatalog } from "@lichtblick/suite-base/context/ExtensionCatalogContext";
 import { BasicBuilder } from "@lichtblick/test-builders";
@@ -110,5 +110,31 @@ describe("useSubscribeMessageRange", () => {
         sortedTopics: [],
       }),
     );
+  });
+
+  it("passes bounded history requests to the batch iterator", () => {
+    // Given
+    const topic = BasicBuilder.string();
+    const start: Time = { sec: 10, nsec: 20 };
+    const end: Time = { sec: 30, nsec: 40 };
+    const mockBatchIterator = { [Symbol.asyncIterator]: jest.fn() };
+    const mockGetBatchIterator = jest.fn().mockReturnValue(mockBatchIterator);
+    mockUseMessagePipelineGetter.mockReturnValue(
+      jest.fn().mockReturnValue({ sortedTopics: [], getBatchIterator: mockGetBatchIterator }),
+    );
+    mockCreateMessageRangeIterator.mockReturnValue({
+      iterable: { [Symbol.asyncIterator]: jest.fn() },
+      cancel: jest.fn(),
+    });
+    const onNewRangeIterator = jest.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useSubscribeMessageRange());
+
+    // When
+    act(() => {
+      result.current({ topic, start, end, onNewRangeIterator });
+    });
+
+    // Then
+    expect(mockGetBatchIterator).toHaveBeenCalledWith(topic, { start, end });
   });
 });
