@@ -816,7 +816,15 @@ export function ThreeDeeRender(props: Readonly<ThreeDeeRenderProps>): React.JSX.
   // Render a new frame if requested
   useEffect(() => {
     if (renderer && renderRef.current.needsRender) {
-      renderer.animationFrame();
+      // A seek frame renders at once: the player waits for it (see the done() effect below).
+      // Other frames may be deferred by scene.maxFps. The done() callback still runs in this
+      // commit, so the player is never held back by the cap; the deferred render then handles
+      // every message queued since the previous render.
+      if (seekFrameRef.current) {
+        renderer.animationFrame();
+      } else {
+        renderer.requestRender();
+      }
       renderRef.current.needsRender = false;
     }
   });

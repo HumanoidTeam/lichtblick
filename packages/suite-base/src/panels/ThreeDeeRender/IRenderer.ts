@@ -130,6 +130,11 @@ export type RendererConfig = {
   scene: {
     /** Show rendering metrics in a DOM overlay */
     enableStats?: boolean;
+    /**
+     * Upper bound for the render rate in frames per second. Undefined renders once per player
+     * frame. Messages that arrive between two renders are handled in the next render.
+     */
+    maxFps?: number;
     /** Background color override for the scene, sent to `glClearColor()` */
     backgroundColor?: string;
     /* Scale factor to apply to all labels */
@@ -435,6 +440,8 @@ export interface IRenderer extends EventEmitter<RendererEvents> {
 
   // Callback handlers
   animationFrame: () => void;
+  /** Render now or, with `scene.maxFps`, at the next allowed time. */
+  requestRender(): void;
   queueAnimationFrame: () => void;
 
   /**

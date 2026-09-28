@@ -61,6 +61,7 @@ import { DEFAULT_MESH_UP_AXIS, ModelCache } from "./ModelCache";
 import { PickedRenderable, Picker } from "./Picker";
 import type { Renderable } from "./Renderable";
 import type { RosApi } from "./RosApi";
+import { RenderRateLimiter } from "./RenderRateLimiter";
 import { SceneExtension } from "./SceneExtension";
 import { SceneExtensionConfig } from "./SceneExtensionConfig";
 import { ScreenOverlay } from "./ScreenOverlay";
@@ -483,6 +484,7 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
   }
 
   public dispose(): void {
+    this.#renderRateLimiter.cancel();
     log.warn(`Disposing renderer`);
     this.#devicePixelRatioMediaQuery?.removeEventListener("change", this.#onDevicePixelRatioChange);
     this.removeAllListeners();
@@ -1429,10 +1431,23 @@ export class Renderer extends EventEmitter<RendererEvents> implements IRenderer 
       this.#animationFrame = undefined;
     }
     if (!this.#rendering) {
+      this.#renderRateLimiter.rendered();
       this.#frameHandler(this.currentTime);
       this.#rendering = false;
     }
   };
+
+  #renderRateLimiter = new RenderRateLimiter(() => {
+    this.animationFrame();
+  });
+
+  /**
+   * Render now, or at most `scene.maxFps` times per second. Messages added in between stay in the
+   * subscription queues and are handled by the next (possibly trailing) render.
+   */
+  public requestRender(): void {
+    this.#renderRateLimiter.request(this.config.scene.maxFps);
+  }
 
   public queueAnimationFrame(): void {
     if (this.#animationFrame == undefined) {

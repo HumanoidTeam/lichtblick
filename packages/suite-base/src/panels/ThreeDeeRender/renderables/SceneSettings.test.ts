@@ -388,3 +388,42 @@ describe("SceneSettings — handleSettingsAction", () => {
     renderer.dispose();
   });
 });
+
+describe("SceneSettings — max frame rate", () => {
+  const SAVED_MAX_FPS = 30;
+  const NEW_MAX_FPS = 15;
+
+  afterEach(() => {
+    (console.warn as jest.Mock).mockClear();
+  });
+
+  it("shows the saved scene.maxFps as a number field, unlimited when unset", () => {
+    const unset = makeRenderer();
+    const unsetField = new SceneSettings(unset).settingsNodes()[0]?.node.fields?.maxFps;
+    expect(unsetField).toMatchObject({ input: "number", min: 0, value: undefined });
+    unset.dispose();
+
+    const saved = makeRenderer(makeDefaultConfig({ maxFps: SAVED_MAX_FPS }));
+    const savedField = new SceneSettings(saved).settingsNodes()[0]?.node.fields?.maxFps;
+    expect(savedField).toMatchObject({ input: "number", value: SAVED_MAX_FPS });
+    saved.dispose();
+  });
+
+  it("stores an edited value in the panel config, and clears it when emptied", () => {
+    const renderer = makeRenderer();
+    const sceneSettings = new SceneSettings(renderer);
+
+    sceneSettings.handleSettingsAction({
+      action: "update",
+      payload: { path: ["scene", "maxFps"], value: NEW_MAX_FPS, input: "number" },
+    });
+    expect(renderer.config.scene.maxFps).toBe(NEW_MAX_FPS);
+
+    sceneSettings.handleSettingsAction({
+      action: "update",
+      payload: { path: ["scene", "maxFps"], value: undefined, input: "number" },
+    });
+    expect(renderer.config.scene.maxFps).toBeUndefined();
+    renderer.dispose();
+  });
+});

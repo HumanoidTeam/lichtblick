@@ -54,6 +54,7 @@ const createMockRenderer = (overrides?: Record<string, any>) => {
     setCameraState: jest.fn(),
     getCameraState: jest.fn().mockReturnValue(undefined),
     animationFrame: jest.fn(),
+    requestRender: jest.fn(),
     addListener: jest.fn((event: string, listener: (...args: any[]) => void) => {
       if (!listeners.has(event)) {
         listeners.set(event, new Set());

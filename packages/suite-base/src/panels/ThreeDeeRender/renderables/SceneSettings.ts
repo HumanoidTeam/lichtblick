@@ -40,6 +40,16 @@ export class SceneSettings extends SceneExtension {
         input: "boolean",
         value: config.scene.enableStats,
       },
+      maxFps: {
+        label: t("threeDee:maxFrameRate"),
+        help: t("threeDee:maxFrameRateHelp"),
+        input: "number",
+        min: 0,
+        step: 1,
+        precision: 0,
+        value: config.scene.maxFps,
+        placeholder: t("threeDee:unlimited"),
+      },
       debugPicking: {
         label: t("threeDee:debugPicking"),
         input: "boolean",

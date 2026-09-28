@@ -66,7 +66,11 @@ export const threeDee = {
   meshUpAxis: "Mesh up axis",
   meshUpAxisHelp:
     "The direction to use as “up” when loading meshes without orientation info (STL and OBJ)",
+  maxFrameRate: "Max frame rate",
+  maxFrameRateHelp:
+    "Highest number of renders per second. Empty or 0: render every frame from the data source.",
   renderStats: "Render stats",
+  unlimited: "Unlimited",
   scene: "Scene",
   takeEffectAfterReboot: "This setting requires a restart to take effect",
   YUp: "Y-up",
