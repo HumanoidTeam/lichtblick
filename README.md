@@ -29,17 +29,17 @@ It is not an official Lichtblick release.
 
 ### What the branch adds
 
-- `web-hmnd/`: a web entrypoint for HMND tools. It limits the data sources, hides the app bar
-  unless a URL parameter enables it, loads extensions that are served next to the bundle, and
-  sets toolbar mode and layout lock from URL parameters. The layout lock is opt-in (`hmnd-lock=1`);
-  without it the layout is unlocked.
+- `web-hmnd/`: a web entrypoint for HMND tools. It limits the data sources, loads extensions
+  that are served next to the bundle, and accepts URL parameters for operator embeddings
+  (`hmnd-hide-appbar`, `hmnd-toolbars`, `hmnd-hide-sidebars`, `hmnd-lock`). The defaults show
+  everything (stock behavior). Refer to `web-hmnd/README.md` for the parameter list.
 - `web-hmnd/src/index.ts` exports `main({ extraPanels, extraSceneExtensions })`. `web-hmnd/webpack.config.ts` exports
   `makeWebHmndConfig({ contextPath, entrypoint, outputPath })`. A downstream build can use its
   own entry file and add panels. Refer to `web-hmnd/README.md`.
 - `WebRoot` props: `extensionLoaders` (replace or extend the extension loaders), `extraPanels`
   (add panels to the built-in panel catalog) and `extraSceneExtensions` (add scene extensions to
   the 3D and Image panels).
-- Operator chrome settings: panel toolbar mode and layout lock.
+- Operator chrome: URL parameters to hide the app bar, set toolbar mode, collapse sidebars and lock the layout.
 - 3D panel APIs for scene extensions: a ROS API on the renderer (`setRosApi`: advertise, publish,
   call service), overlay elements above the canvas (`setOverlay`), saved per-extension settings
   (`extensionSettings` in the panel config), and the `InteractiveMarkerFeedback` publish datatype.

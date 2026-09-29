@@ -5,8 +5,6 @@ but wired for embedding in HMND tooling rather than for standalone use:
 
 - data sources limited to Foxglove WebSocket (live robots), local MCAP, remote
   MCAP files and local ROS 2 bags (fault investigation of recordings);
-- the app bar is hidden, unless the URL carries `?hmnd-appbar=1` — layout
-  authoring needs it;
 - the open-on-startup data source dialog is off by default;
 - extensions are served as static files next to the bundle, see
   `src/BundledExtensionLoader.ts`.
@@ -25,15 +23,16 @@ it is mounted at.
 ## URL parameters
 
 Beyond the parameters suite-base itself understands (`ds`, `ds.*`, `layoutUrl`,
-`layout`, …), this entrypoint adds:
+`layout`, …), this entrypoint adds parameters for operator embeddings. The
+defaults show everything (stock Lichtblick behavior). An operator iframe uses
+these to restrict the UI:
 
-- `hmnd-appbar=1`: show the app bar (and, by default, full panel toolbars).
-- `hmnd-toolbars=full|compact|hidden`: panel toolbar mode.
-- `hmnd-sidebars=1`: show the sidebars instead of starting them collapsed.
-- `hmnd-lock=1`: lock the layout (no drag, split, resize, add or remove of
-  panels). Without it the layout is unlocked, as in stock Lichtblick.
+- `hmnd-hide-appbar=1`: hide the app bar (layout menu, panel catalog, settings).
+- `hmnd-toolbars=hidden|compact|full`: panel toolbar mode (default `full`).
+- `hmnd-hide-sidebars=1`: collapse the sidebars on load.
+- `hmnd-lock=1`: lock the layout (no drag, split, resize, add or remove panels).
 
-Only the exact value `1` enables a flag.
+Only the exact value `1` enables a flag. An authoring URL needs no parameters.
 
 ## Downstream entrypoint with extra panels
 

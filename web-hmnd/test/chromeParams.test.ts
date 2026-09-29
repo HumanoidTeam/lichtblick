@@ -12,60 +12,8 @@ function resolve(query: string) {
 }
 
 describe("resolveChromeParams", () => {
-  it("defaults to the operator configuration when no parameters are given", () => {
-    // This is the case an embedding iframe hits, and the one a dropped parameter degrades to
+  it("defaults to full authoring mode when no parameters are given", () => {
     expect(resolve("")).toEqual({
-      showAppBar: false,
-      panelToolbarMode: "hidden",
-      layoutLocked: false,
-      collapseSidebars: true,
-    });
-  });
-
-  it("restores the app bar and its toolbars together for layout authoring", () => {
-    // Authoring means seeing the panel actions, so the two travel together by default
-    expect(resolve("hmnd-appbar=1")).toMatchObject({
-      showAppBar: true,
-      panelToolbarMode: "full",
-    });
-  });
-
-  it("lets the toolbar parameter override the app-bar pairing in either direction", () => {
-    expect(resolve("hmnd-appbar=1&hmnd-toolbars=hidden")).toMatchObject({
-      showAppBar: true,
-      panelToolbarMode: "hidden",
-    });
-    expect(resolve("hmnd-toolbars=compact")).toMatchObject({
-      showAppBar: false,
-      panelToolbarMode: "compact",
-    });
-  });
-
-  it("locks the layout only for an explicit 1", () => {
-    expect(resolve("hmnd-lock=1").layoutLocked).toBe(true);
-
-    // Anything else keeps the stock, unlocked layout
-    for (const query of ["hmnd-lock=0", "hmnd-lock", "hmnd-lock=true", "hmnd-lock=yes"]) {
-      expect(resolve(query).layoutLocked).toBe(false);
-    }
-    // The removed parameter has no effect
-    expect(resolve("hmnd-unlock=1").layoutLocked).toBe(false);
-  });
-
-  it("restores the sidebars only for an explicit 1", () => {
-    expect(resolve("hmnd-sidebars=1").collapseSidebars).toBe(false);
-    expect(resolve("hmnd-sidebars=0").collapseSidebars).toBe(true);
-    expect(resolve("hmnd-sidebars").collapseSidebars).toBe(true);
-  });
-
-  it("passes an unrecognised toolbar value straight through for the app to validate", () => {
-    // Validation lives in parsePanelToolbarMode, which falls back to "full"; duplicating the
-    // allowed set here would let the two drift
-    expect(resolve("hmnd-toolbars=nonsense").panelToolbarMode).toBe("nonsense");
-  });
-
-  it("combines every authoring escape", () => {
-    expect(resolve("hmnd-appbar=1&hmnd-sidebars=1")).toEqual({
       showAppBar: true,
       panelToolbarMode: "full",
       layoutLocked: false,
@@ -73,12 +21,68 @@ describe("resolveChromeParams", () => {
     });
   });
 
-  it("ignores unrelated parameters the embed also carries", () => {
-    expect(resolve("ds=foxglove-websocket&ds.url=ws://host:8765&layoutUrl=/x.json")).toEqual({
+  it("hides the app bar for an explicit 1", () => {
+    expect(resolve("hmnd-hide-appbar=1").showAppBar).toBe(false);
+
+    // Anything else keeps the stock, visible app bar
+    for (const query of ["hmnd-hide-appbar=0", "hmnd-hide-appbar", "hmnd-hide-appbar=true"]) {
+      expect(resolve(query).showAppBar).toBe(true);
+    }
+    // The removed old parameter has no effect
+    expect(resolve("hmnd-appbar=1").showAppBar).toBe(true);
+  });
+
+  it("sets the toolbar mode from the parameter value", () => {
+    expect(resolve("hmnd-toolbars=hidden").panelToolbarMode).toBe("hidden");
+    expect(resolve("hmnd-toolbars=compact").panelToolbarMode).toBe("compact");
+    expect(resolve("hmnd-toolbars=full").panelToolbarMode).toBe("full");
+  });
+
+  it("defaults toolbars to full when the parameter is absent", () => {
+    expect(resolve("").panelToolbarMode).toBe("full");
+    expect(resolve("hmnd-hide-appbar=1").panelToolbarMode).toBe("full");
+  });
+
+  it("locks the layout only for an explicit 1", () => {
+    expect(resolve("hmnd-lock=1").layoutLocked).toBe(true);
+
+    for (const query of ["hmnd-lock=0", "hmnd-lock", "hmnd-lock=true", "hmnd-lock=yes"]) {
+      expect(resolve(query).layoutLocked).toBe(false);
+    }
+    expect(resolve("hmnd-unlock=1").layoutLocked).toBe(false);
+  });
+
+  it("collapses the sidebars only for an explicit 1", () => {
+    expect(resolve("hmnd-hide-sidebars=1").collapseSidebars).toBe(true);
+
+    for (const query of ["hmnd-hide-sidebars=0", "hmnd-hide-sidebars", ""]) {
+      expect(resolve(query).collapseSidebars).toBe(false);
+    }
+    // The removed old parameter has no effect
+    expect(resolve("hmnd-sidebars=1").collapseSidebars).toBe(false);
+  });
+
+  it("passes an unrecognised toolbar value straight through for the app to validate", () => {
+    expect(resolve("hmnd-toolbars=nonsense").panelToolbarMode).toBe("nonsense");
+  });
+
+  it("combines every operator flag for a locked, minimal embed", () => {
+    expect(
+      resolve("hmnd-hide-appbar=1&hmnd-hide-sidebars=1&hmnd-toolbars=hidden&hmnd-lock=1"),
+    ).toEqual({
       showAppBar: false,
       panelToolbarMode: "hidden",
-      layoutLocked: false,
+      layoutLocked: true,
       collapseSidebars: true,
+    });
+  });
+
+  it("ignores unrelated parameters the embed also carries", () => {
+    expect(resolve("ds=foxglove-websocket&ds.url=ws://host:8765&layoutUrl=/x.json")).toEqual({
+      showAppBar: true,
+      panelToolbarMode: "full",
+      layoutLocked: false,
+      collapseSidebars: false,
     });
   });
 });

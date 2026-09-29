@@ -8,25 +8,22 @@
 /**
  * URL parameters that control the operator chrome.
  *
- * The deployment defaults are the operator ones — no app bar, no panel toolbars, collapsed
- * sidebars — and `hmnd-appbar`, `hmnd-toolbars` and `hmnd-sidebars` exist to *undo* one of them for
- * layout authoring. The layout lock is opt-in: the layout is unlocked (stock behavior) unless the
- * URL carries `hmnd-lock=1`.
- *
- * The embedding iframe (Phase 4) builds these into its `src`; they are read once at startup.
+ * The defaults show everything (stock Lichtblick behavior). Operator embeddings use the flags
+ * below to hide UI and lock the layout. The embedding iframe builds these into its `src`; they
+ * are read once at startup.
  */
 
-/** Restores the stock app bar. */
-export const APP_BAR_PARAM = "hmnd-appbar";
+/** Hides the app bar (layout menu, panel catalog, settings). */
+export const HIDE_APP_BAR_PARAM = "hmnd-hide-appbar";
 
-/** `full` | `compact` | `hidden`. How much toolbar each panel renders. */
+/** `full` | `compact` | `hidden`. Default is `full` (stock). */
 export const TOOLBARS_PARAM = "hmnd-toolbars";
 
 /** Locks mosaic drag, split and resize, and the panel add/remove controls. */
 export const LOCK_PARAM = "hmnd-lock";
 
-/** Restores the stock sidebars instead of starting them collapsed. */
-export const SIDEBARS_PARAM = "hmnd-sidebars";
+/** Collapses the sidebars on load. */
+export const HIDE_SIDEBARS_PARAM = "hmnd-hide-sidebars";
 
 export type ChromeParams = {
   showAppBar: boolean;
@@ -42,13 +39,10 @@ function isEnabled(params: URLSearchParams, name: string): boolean {
 }
 
 export function resolveChromeParams(params: URLSearchParams): ChromeParams {
-  const showAppBar = isEnabled(params, APP_BAR_PARAM);
   return {
-    showAppBar,
-    // Authoring a layout means seeing the panel actions, so restoring the app bar restores the
-    // toolbars with it unless the parameter says otherwise.
-    panelToolbarMode: params.get(TOOLBARS_PARAM) ?? (showAppBar ? "full" : "hidden"),
+    showAppBar: !isEnabled(params, HIDE_APP_BAR_PARAM),
+    panelToolbarMode: params.get(TOOLBARS_PARAM) ?? "full",
     layoutLocked: isEnabled(params, LOCK_PARAM),
-    collapseSidebars: !isEnabled(params, SIDEBARS_PARAM),
+    collapseSidebars: isEnabled(params, HIDE_SIDEBARS_PARAM),
   };
 }
